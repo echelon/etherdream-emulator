@@ -1,0 +1,17 @@
+[package]
+  name = "etherdream-emulator"
+  version = "0.0.1"
+  authors = [ "Brandon Thomas <bt@brand.io>", "Brandon Thomas <echelon@gmail.com>" ]
+  description = "An Ether Dream (laser DAC) emulator that draws on a canvas"
+  keywords = [ "EtherDream", "laser", "projector", "ether", "dream" ]
+  license = "BSD-4-Clause"
+  readme = "README.md"
+  repository = "https://github.com/echelon/etherdream-emulator.rs"
+
+[[bin]]
+  name = "etherdream-emulator"
+
+[dependencies]
+  image = "0.10.*"
+  log = "0.3.*"
+
