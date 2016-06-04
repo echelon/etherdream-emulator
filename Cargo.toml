@@ -1,8 +1,8 @@
 [package]
   name = "etherdream-emulator"
-  version = "0.0.1"
+  version = "0.1.0"
   authors = [ "Brandon Thomas <bt@brand.io>", "Brandon Thomas <echelon@gmail.com>" ]
-  description = "An Ether Dream (laser DAC) emulator that draws on a canvas"
+  description = "An EtherDream (laser DAC) emulator and visualization tool."
   keywords = [ "EtherDream", "laser", "projector", "ether", "dream" ]
   license = "BSD-4-Clause"
   readme = "README.md"
@@ -12,6 +12,12 @@
   name = "etherdream-emulator"
 
 [dependencies]
-  image = "0.10.*"
+  byteorder = "0.5.*"
+  glium = "0.14.*"
+  ilda = "0.0.2"
   log = "0.3.*"
+  net2 = "0.2.*"
+  piston = "0.23.*"
+  piston2d-glium_graphics = "0.26.0"
+  piston2d-graphics = "0.16.0"
 
