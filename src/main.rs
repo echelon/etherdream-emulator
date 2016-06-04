@@ -2,6 +2,7 @@
 // See http://ether-dream.com/protocol.html
 
 //extern crate glutin;
+extern crate rand;
 extern crate net2;
 
 extern crate graphics;                                                          
@@ -88,27 +89,54 @@ impl Broadcast {
 
 pub struct PointBuffer {
   buffer: Vec<Point>,
+  next: usize,
+  capacity: usize,
 }
 
-pub struct PointHolder {
+#[derive(Clone)]
+pub struct AtomicPointBuffer {
   holder: Arc<RwLock<PointBuffer>>,
 }
 
-impl PointHolder {
-  pub fn new() -> PointHolder {
-    let buffer = PointBuffer {
-      buffer: Vec::new(),
-    };
-    PointHolder {
-      holder: Arc::new(RwLock::new(buffer))
+impl PointBuffer {
+  pub fn new() -> PointBuffer {
+    PointBuffer {
+      buffer: Vec::with_capacity(2000),
+      next: 0,
+      capacity: 2000,
     }
+  }
+
+  pub fn add(&mut self, point: Point) {
+    self.buffer.insert(self.next, point);
+    self.next = (self.next + 1) % self.capacity; // FIXME: Capacity
+  }
+  pub fn read(&self) -> &Vec<Point> {
+    &self.buffer
   }
 }
 
+/*impl AtomicPointBuffer {
+  pub fn new() -> AtomicPointBuffer {
+    let buffer = PointBuffer::new();
+    AtomicPointBuffer {
+      holder: Arc::new(RwLock::new(buffer))
+    }
+  }
+
+  pub get(&self) -> &mut PointBuffer {
+  }
+}*/
+
 fn main() {
+  let mut buffer = Arc::new(RwLock::new(PointBuffer::new()));
+
+  let buffer2 = buffer.clone();
+  let buffer3 = buffer.clone();
+
   thread::spawn(|| broadcast_thread());
-  thread::spawn(|| dac_thread());
-  thread::spawn(|| gl_window());
+  thread::spawn(|| dac_thread(buffer2));
+  thread::spawn(|| gl_window(buffer3));
 
   loop {
     sleep(Duration::from_secs(10)); // TODO: Join other threads
@@ -135,7 +163,7 @@ fn broadcast_thread() {
   }
 }
 
-fn dac_thread() {
+fn dac_thread(buffer: Arc<RwLock<PointBuffer>>) {
   //tcp.reuse_address(true).unwrap(); // TODO
 
   //socket.set_broadcast(true).unwrap(); // TODO
@@ -163,6 +191,7 @@ fn dac_thread() {
         println!("Connected!");
         //stream.set_ttl(500).unwrap(); // FIXME: Assume millisec
 
+        // FIXME: THIS IS ABSOLUTE GARBAGE. MAKE A STATE MACHINE.
         loop {
           let mut state = DacStatus::empty();
           //let mut bytes = [0u8; 56]; // TODO: Better buffer
@@ -221,7 +250,18 @@ fn dac_thread() {
           loop {
             read_result = stream.read(&mut bytes);
             match read_result {
-              Ok(size) => { println!("Read C: {}", size); },
+              Ok(size) => { 
+                println!("Read C: {}", size); 
+
+                match (*buffer).write() {
+                  Err(_) => {},
+                  Ok(mut pb) => {
+                    println!("Adding point!");
+                    pb.add(Point::random());
+                  }
+                }
+
+              },
               Err(_) => { println!("Read error C."); },
             };
             write_result = stream.write(
@@ -240,7 +280,7 @@ fn dac_thread() {
   }
 }
 
-fn gl_window() {
+fn gl_window(buffer: Arc<RwLock<PointBuffer>>) {
   let opengl = OpenGL::V3_2;
   let (w, h) = (640, 480);
   let ref mut window: GliumWindow =
@@ -255,11 +295,33 @@ fn gl_window() {
 
       let mut target = window.draw();
       g2d.draw(&mut target, args.viewport(), |c, g| {
+
         clear([0.8, 0.8, 0.8, 1.0], g);
 
         g.clear_stencil(0);                                                     
-        Rectangle::new([1.0, 0.0, 0.0, 1.0])
-          .draw([0.0, 0.0, 100.0, 100.0], &c.draw_state, c.transform, g);
+        Rectangle::new([0.0, 0.0, 0.0, 1.0])
+          .draw([0.0, 0.0, 640.0, 480.0], &c.draw_state, c.transform, g);
+
+        match (*buffer).read() {
+          Err(_) => {},
+          Ok(pb) => {
+            let points = pb.read();
+
+            for point in points {
+              println!("{}, {}", point.x, point.y);
+              Rectangle::new([1.0, 1.0, 1.0, 1.0])
+                .draw([
+                      point.x as f64, 
+                      point.y as f64, 
+                      point.x as f64 + 4.0, 
+                      point.y as f64 + 4.0], 
+                      &c.draw_state, c.transform, g);
+
+            }
+          },
+        }
+
+
 
       });
 
@@ -268,3 +330,10 @@ fn gl_window() {
   }
 }
 
+pub fn map_x(x: u16, width: u16) -> f64 {
+  0.0
+}
+
+pub fn map_y(y: u16, height: u16) -> f64 {
+  0.0
+}

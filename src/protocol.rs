@@ -3,6 +3,9 @@
 // website, and the copyright belongs to Jacob Potter.
 // See http://ether-dream.com/protocol.html
 
+extern crate rand;
+use rand::Rng;
+
 /** The DAC periodically sends state information. */
 
 #[derive(Clone)]
@@ -209,6 +212,24 @@ pub struct Point {
   pub b: u16,
   pub u1: u16,
   pub u2: u16,
+}
+
+impl Point {
+  // TODO: Just for testing
+  pub fn random() -> Point {
+    let mut rng = rand::thread_rng();
+    Point {
+      control: 0,
+      x: rng.gen(),
+      y: rng.gen(),
+      i: rng.gen(),
+      r: rng.gen(),
+      g: rng.gen(),
+      b: rng.gen(),
+      u1: rng.gen(),
+      u2: rng.gen(),
+    }
+  }
 }
 
 // TODO BETTER NAME
