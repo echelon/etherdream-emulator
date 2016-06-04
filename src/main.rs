@@ -14,11 +14,10 @@ use std::net::SocketAddrV4;
 use std::net::UdpSocket;
 use std::thread::sleep;
 use std::time::Duration;
+use std::thread;
 
 const TCP_PORT : u16 = 7765;
 const UDP_PORT : u16 = 7654;
-
-// 20 bytes
 
 // 16 bytes + dac status -> 36 bytes
 pub struct Broadcast {
@@ -64,6 +63,15 @@ impl Broadcast {
 }
 
 fn main() {
+  thread::spawn(|| broadcast_thread());
+
+  loop {
+    sleep(Duration::from_secs(1));
+    println!("Main Thread");
+  }
+}
+
+fn broadcast_thread() {
   let udp = UdpBuilder::new_v4().unwrap(); // TODO
   udp.reuse_address(true).unwrap(); // TODO
 
