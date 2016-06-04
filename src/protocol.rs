@@ -18,7 +18,7 @@ pub struct DacStatus {
 }
 
 impl DacStatus {
-  pub fn new() -> DacStatus {
+  pub fn empty() -> DacStatus {
     DacStatus {
       protocol: 0,
       light_engine_state: 0,
@@ -31,6 +31,32 @@ impl DacStatus {
       point_rate: 0,
       point_count: 0,
     }
+  }
+
+  // FIXME: Serialization massively sucks.
+  pub fn serialize(&self) -> Vec<u8> {
+    let mut v = Vec::new();
+    v.push(self.protocol);
+    v.push(self.light_engine_state);
+    v.push(self.playback_state);
+    v.push(self.source);
+    v.push(0); // TODO
+    v.push(0);
+    v.push(0);
+    v.push(0);
+    v.push(0);
+    v.push(0);
+    v.push(0);
+    v.push(0);
+    v.push(0);
+    v.push(0);
+    v.push(0);
+    v.push(0);
+    v.push(0);
+    v.push(0);
+    v.push(0);
+    v.push(0);
+    v
   }
 }
 
@@ -66,7 +92,7 @@ struct Point {
   u2: u16,
 }
 
-struct DacResponse {
+pub struct DacResponse {
   /**
    * Response can be any of the following:
    *
@@ -99,6 +125,22 @@ impl DacResponse {
       command: command,
       dac_status: dac_status,
     }
+  }
+
+  pub fn info() -> DacResponse {
+    DacResponse {
+      response: 0x61,
+      command: 0x3f, // '?'
+      dac_status: DacStatus::empty(),
+    }
+  }
+
+  pub fn serialize(&self) -> Vec<u8> {
+    let mut vec = Vec::new();
+    vec.push(self.response);
+    vec.push(self.command);
+    vec.extend(self.dac_status.serialize());
+    vec
   }
 }
 

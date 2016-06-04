@@ -5,16 +5,19 @@ extern crate net2;
 
 mod protocol;
 
-use protocol::DacStatus;
-
+use net2::TcpBuilder;
 use net2::UdpBuilder;
+use protocol::DacResponse;
+use protocol::DacStatus;
+use std::io::Write;
 use std::net::Ipv4Addr;
 use std::net::SocketAddr;
 use std::net::SocketAddrV4;
+use std::net::TcpListener;
 use std::net::UdpSocket;
 use std::thread::sleep;
-use std::time::Duration;
 use std::thread;
+use std::time::Duration;
 
 const TCP_PORT : u16 = 7765;
 const UDP_PORT : u16 = 7654;
@@ -64,10 +67,10 @@ impl Broadcast {
 
 fn main() {
   thread::spawn(|| broadcast_thread());
+  thread::spawn(|| dac_thread());
 
   loop {
-    sleep(Duration::from_secs(1));
-    println!("Main Thread");
+    sleep(Duration::from_secs(10)); // TODO: Join other threads
   }
 }
 
@@ -88,6 +91,43 @@ fn broadcast_thread() {
     sleep(Duration::from_secs(1));
     println!("Sending multicast...");
     socket.send_to(&broadcast.serialize(), multicast_socket);
+  }
+}
+
+fn dac_thread() {
+  //tcp.reuse_address(true).unwrap(); // TODO
+
+  //socket.set_broadcast(true).unwrap(); // TODO
+  //let multicast_ip = Ipv4Addr::new(255, 255, 255, 255); 
+  //let multicast_socket = SocketAddr::V4(SocketAddrV4::new(multicast_ip, UDP_PORT));
+  //let mut stream = socket.to_tcp_stream().unwrap(); // TODO
+  //let broadcast = Broadcast::new();
+  //
+
+  /*let tcp = TcpBuilder::new_v4().unwrap(); // TODO
+  let mut socket = tcp.bind("0.0.0.0:7765").unwrap(); // TODO
+  let mut listener = socket.to_tcp_listener().unwrap(); // TODO */
+
+  let listener = TcpListener::bind("0.0.0.0:7765").unwrap();
+
+  loop {
+    sleep(Duration::from_secs(1));
+    println!("Dac thread.");
+    match listener.accept() {
+      Err(e) => {
+        println!("Error: {:?}", e);
+      },
+      Ok((mut stream, socket_addr)) => {
+        println!("Connected!");
+
+        stream.write(&DacResponse::info().serialize());
+
+
+
+      },
+    }
+    //println!("Sending multicast...");
+    //socket.send_to(&broadcast.serialize(), multicast_socket);
   }
 }
 
