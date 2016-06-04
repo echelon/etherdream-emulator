@@ -152,19 +152,40 @@ impl DacStatus {
   }
 }
 
+pub enum Command {
+  BeginPlayback,
+  ClearEStop,
+  EmergencyStop,
+  Ping,
+  PrepareStream,
+  QueueRateChange,
+  Stop,
+  WriteData,
+  UnknownCommand { command: u8 },
+}
+
+impl Command {
+  /// Returns the over-the-wire serialization of the command
+  pub fn value(&self) -> u8 {
+    match *self {
+      Command::BeginPlayback => 0x62,   // 'b'
+      Command::ClearEStop => 0x63,      // 'c'
+      Command::EmergencyStop=> 0x00,    // also recognizes 0xff
+      Command::Ping => 0x3f,            // '?'
+      Command::PrepareStream => 0x70,   // 'p'
+      Command::QueueRateChange => 0x74, // 'q'
+      Command::Stop => 0x73,            // 's'
+      Command::WriteData => 0x64,       // 'd'
+      Command::UnknownCommand { command } => command,
+    }
+  }
+}
+
 struct BeginCommand {
   command: u8, // 'b' (0x62)
   low_water_mark: u16, // currently unused.
   point_rate: u32,
 }
-
-/*impl BeginCommand {
-  pub fn parse(bytes: [u8]) -> BeginCommand {
-    BeginCommand {
-      command
-    }
-  }
-}*/
 
 struct PrepareCommand {
   command: u8, // 'd' (0x64)
