@@ -1,6 +1,13 @@
 // Copyright (c) 2016 Brandon Thomas <bt@brand.io>, <echelon@gmail.com>
 // See http://ether-dream.com/protocol.html
 
+extern crate net2;
+
+mod protocol;
+
+use protocol::DacStatus;
+
+use net2::UdpBuilder;
 use std::net::Ipv4Addr;
 use std::net::SocketAddr;
 use std::net::SocketAddrV4;
@@ -12,18 +19,6 @@ const TCP_PORT : u16 = 7765;
 const UDP_PORT : u16 = 7654;
 
 // 20 bytes
-pub struct DacStatus {
-  pub protocol : u8,
-  pub light_engine_state : u8,
-  pub playback_state : u8,
-  pub source : u8,
-  pub light_engine_flags : u16,
-  pub playback_flags : u16,
-  pub source_flags : u16,
-  pub buffer_fullness : u16,
-  pub point_rate : u32,
-  pub point_count : u32,
-}
 
 // 16 bytes + dac status -> 36 bytes
 pub struct Broadcast {
@@ -69,7 +64,11 @@ impl Broadcast {
 }
 
 fn main() {
-  let mut socket = UdpSocket::bind("0.0.0.0:7654").unwrap(); // TODO
+  let udp = UdpBuilder::new_v4().unwrap(); // TODO
+  udp.reuse_address(true).unwrap(); // TODO
+
+  let mut socket = udp.bind("0.0.0.0:7654").unwrap(); // TODO
+
   socket.set_broadcast(true).unwrap(); // TODO
 
   let multicast_ip = Ipv4Addr::new(255, 255, 255, 255); 
