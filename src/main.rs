@@ -8,7 +8,9 @@ mod protocol;
 use net2::TcpBuilder;
 use net2::UdpBuilder;
 use protocol::DacResponse;
+use protocol::ResponseState;
 use protocol::DacStatus;
+use std::io::Read;
 use std::io::Write;
 use std::net::Ipv4Addr;
 use std::net::SocketAddr;
@@ -120,7 +122,14 @@ fn dac_thread() {
       Ok((mut stream, socket_addr)) => {
         println!("Connected!");
 
+        let mut state = DacStatus::empty();
         stream.write(&DacResponse::info().serialize());
+
+        // TODO: DON'T IGNORE PREPARE COMMAND (p / 0x70)
+        let mut bytes = [0u8; 56];
+        stream.read(&mut bytes);
+
+        stream.write(&DacResponse::new(ResponseState::Ack, 0x70, state.clone()).serialize());
 
 
 
