@@ -91,7 +91,7 @@ fn broadcast_thread() {
 
   loop {
     sleep(Duration::from_secs(1));
-    println!("Sending multicast...");
+    //println!("Sending multicast...");
     socket.send_to(&broadcast.serialize(), multicast_socket);
   }
 }
@@ -111,6 +111,7 @@ fn dac_thread() {
   let mut listener = socket.to_tcp_listener().unwrap(); // TODO */
 
   let listener = TcpListener::bind("0.0.0.0:7765").unwrap();
+  listener.set_ttl(500); // FIXME: Assume millisec
 
   loop {
     sleep(Duration::from_secs(1));
@@ -121,17 +122,77 @@ fn dac_thread() {
       },
       Ok((mut stream, socket_addr)) => {
         println!("Connected!");
+        //stream.set_ttl(500).unwrap(); // FIXME: Assume millisec
 
-        let mut state = DacStatus::empty();
-        stream.write(&DacResponse::info().serialize());
+        loop {
+          let mut state = DacStatus::empty();
+          //let mut bytes = [0u8; 56]; // TODO: Better buffer
+          let mut bytes = [0u8; 2048]; // TODO: Better buffer
 
-        // TODO: DON'T IGNORE PREPARE COMMAND (p / 0x70)
-        let mut bytes = [0u8; 56];
-        stream.read(&mut bytes);
+          // ***** A *****
+          let mut write_result = stream.write(&DacResponse::info().serialize());
+          match write_result {
+            Ok(size) => { println!("Write A: {}", size); },
+            Err(_) => { println!("Write error A."); },
+          };
 
-        stream.write(&DacResponse::new(ResponseState::Ack, 0x70, state.clone()).serialize());
+          // ***** B *****
+          // TODO: DON'T IGNORE PREPARE COMMAND (p / 0x70)
+          let mut read_result = stream.read(&mut bytes);
+          match read_result {
+            Ok(size) => { println!("Read B: {}", size); },
+            Err(_) => { println!("Read error B."); },
+          };
+          write_result = stream.write(
+              &DacResponse::new(ResponseState::Ack, 0x70, state.clone()).serialize());
+          match write_result {
+            Ok(size) => { println!("Write B: {}", size); },
+            Err(_) => { println!("Write error B."); },
+          };
 
 
+          // ***** C ***** "Data"
+            read_result = stream.read(&mut bytes);
+            match read_result {
+              Ok(size) => { println!("Read C: {}", size); },
+              Err(_) => { println!("Read error C."); },
+            };
+            write_result = stream.write(
+                &DacResponse::new(ResponseState::Ack, 0x64, state.clone()).serialize());
+            match write_result {
+              Ok(size) => { println!("Write C: {}", size); },
+              Err(_) => { println!("Write error C."); },
+            };
+
+          // ***** D *****: "Begin" 
+            read_result = stream.read(&mut bytes);
+            match read_result {
+              Ok(size) => { println!("Read D: {}", size); },
+              Err(_) => { println!("Read error D."); },
+            };
+            write_result = stream.write(
+                &DacResponse::new(ResponseState::Ack, 0x62, state.clone()).serialize());
+            match write_result {
+              Ok(size) => { println!("Write D: {}", size); },
+              Err(_) => { println!("Write error D."); },
+            };
+
+
+          // ***** C ***** "More data"
+          loop {
+            read_result = stream.read(&mut bytes);
+            match read_result {
+              Ok(size) => { println!("Read C: {}", size); },
+              Err(_) => { println!("Read error C."); },
+            };
+            write_result = stream.write(
+                &DacResponse::new(ResponseState::Ack, 0x64, state.clone()).serialize());
+            match write_result {
+              Ok(size) => { println!("Write C: {}", size); },
+              Err(_) => { println!("Write error C."); },
+            };
+          }
+        }
 
       },
     }
