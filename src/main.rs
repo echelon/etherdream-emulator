@@ -1,7 +1,22 @@
 // Copyright (c) 2016 Brandon Thomas <bt@brand.io>, <echelon@gmail.com>
 // See http://ether-dream.com/protocol.html
 
+//extern crate glutin;
 extern crate net2;
+
+extern crate graphics;                                                          
+extern crate glium;
+extern crate glium_graphics;
+extern crate piston;
+
+use glium::DisplayBuild;
+use glium_graphics::{                                                           
+    Flip, Glium2d, GliumWindow, OpenGL, Texture, TextureSettings
+};
+
+use piston::input::*; 
+use piston::window::WindowSettings; 
+use graphics::draw_state::Blend; 
 
 mod protocol;
 
@@ -10,8 +25,12 @@ use net2::UdpBuilder;
 use protocol::DacResponse;
 use protocol::ResponseState;
 use protocol::DacStatus;
+use protocol::Point;
 use std::io::Read;
 use std::io::Write;
+use std::sync::Arc;
+use std::sync::Mutex;
+use std::sync::RwLock;
 use std::net::Ipv4Addr;
 use std::net::SocketAddr;
 use std::net::SocketAddrV4;
@@ -67,9 +86,29 @@ impl Broadcast {
   }
 }
 
+pub struct PointBuffer {
+  buffer: Vec<Point>,
+}
+
+pub struct PointHolder {
+  holder: Arc<RwLock<PointBuffer>>,
+}
+
+impl PointHolder {
+  pub fn new() -> PointHolder {
+    let buffer = PointBuffer {
+      buffer: Vec::new(),
+    };
+    PointHolder {
+      holder: Arc::new(RwLock::new(buffer))
+    }
+  }
+}
+
 fn main() {
   thread::spawn(|| broadcast_thread());
   thread::spawn(|| dac_thread());
+  thread::spawn(|| gl_window());
 
   loop {
     sleep(Duration::from_secs(10)); // TODO: Join other threads
@@ -198,6 +237,34 @@ fn dac_thread() {
     }
     //println!("Sending multicast...");
     //socket.send_to(&broadcast.serialize(), multicast_socket);
+  }
+}
+
+fn gl_window() {
+  let opengl = OpenGL::V3_2;
+  let (w, h) = (640, 480);
+  let ref mut window: GliumWindow =
+    WindowSettings::new("glium_graphics: image_test", [w, h])
+    .exit_on_esc(true).opengl(opengl).build().unwrap();
+
+
+  let mut g2d = Glium2d::new(opengl, window); 
+  while let Some(e) = window.next() { 
+    if let Some(args) = e.render_args() { 
+      use graphics::*;
+
+      let mut target = window.draw();
+      g2d.draw(&mut target, args.viewport(), |c, g| {
+        clear([0.8, 0.8, 0.8, 1.0], g);
+
+        g.clear_stencil(0);                                                     
+        Rectangle::new([1.0, 0.0, 0.0, 1.0])
+          .draw([0.0, 0.0, 100.0, 100.0], &c.draw_state, c.transform, g);
+
+      });
+
+      target.finish().unwrap();
+    }
   }
 }
 

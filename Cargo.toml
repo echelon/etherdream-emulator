@@ -12,7 +12,16 @@
   name = "etherdream-emulator"
 
 [dependencies]
-  image = "0.10.*"
+  #glutin = "0.5.*"
+  #glium = "0.14.*"
+  #glium_graphics = "0.26.*"
+  #image = "0.10.*"
+
+  glium = "0.14.*"
+  piston = "0.23.*"
+  piston2d-graphics = "0.16.0"
+  piston2d-glium_graphics = "0.26.0"
+
   log = "0.3.*"
   net2 = "0.2.*"
 

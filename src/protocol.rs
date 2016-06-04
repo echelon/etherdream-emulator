@@ -199,16 +199,16 @@ struct DataCommand {
   dac_points: Vec<Point>,
 }
 
-struct Point {
-  control: u16,
-  x: u16,
-  y: u16,
-  i: u16,
-  r: u16,
-  g: u16,
-  b: u16,
-  u1: u16,
-  u2: u16,
+pub struct Point {
+  pub control: u16,
+  pub x: u16,
+  pub y: u16,
+  pub i: u16,
+  pub r: u16,
+  pub g: u16,
+  pub b: u16,
+  pub u1: u16,
+  pub u2: u16,
 }
 
 // TODO BETTER NAME
