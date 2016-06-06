@@ -11,6 +11,7 @@ extern crate piston;
 
 mod protocol;
 mod render;
+mod dac;
 
 use net2::TcpBuilder;
 use net2::UdpBuilder;
@@ -21,6 +22,7 @@ use protocol::ResponseState;
 use rand::Rng;
 use render::PointBuffer;
 use render::TimedPoint;
+use dac::Dac;
 use render::gl_window;
 use std::io::Read;
 use std::io::Write;
@@ -93,7 +95,7 @@ fn main() {
 
   thread::spawn(|| broadcast_thread());
   thread::spawn(|| dac_thread(buffer2));
-  thread::spawn(|| gl_window(buffer3));
+  //thread::spawn(|| gl_window(buffer3));
 
   loop {
     sleep(Duration::from_secs(10)); // TODO: Join other threads
@@ -146,6 +148,11 @@ fn dac_thread(buffer: Arc<RwLock<PointBuffer>>) {
     };
   }*/
 
+  let dac = Dac::new();
+  dac.listen();
+
+  return;
+
   let listener = TcpListener::bind("0.0.0.0:7765").unwrap();
   listener.set_ttl(500); // FIXME: Assume millisec
 
@@ -159,8 +166,6 @@ fn dac_thread(buffer: Arc<RwLock<PointBuffer>>) {
       Ok((mut stream, socket_addr)) => {
         println!("Connected!");
         //stream.set_ttl(500).unwrap(); // FIXME: Assume millisec
-
-
 
         // FIXME: THIS IS ABSOLUTE GARBAGE. MAKE A STATE MACHINE.
         loop {
@@ -188,6 +193,8 @@ fn dac_thread(buffer: Arc<RwLock<PointBuffer>>) {
             Ok(size) => { println!("Write B: {}", size); },
             Err(_) => { println!("Write error B."); },
           };
+
+          return;
 
 
           // ***** C ***** "Data"
@@ -223,6 +230,7 @@ fn dac_thread(buffer: Arc<RwLock<PointBuffer>>) {
             match read_result {
               Ok(size) => { 
                 println!("Read C: {}", size); 
+                println!("First byte: {}", bytes[0]);
 
                 match (*buffer).write() {
                   Err(_) => {},

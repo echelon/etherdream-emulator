@@ -156,30 +156,46 @@ impl DacStatus {
 }
 
 pub enum Command {
-  BeginPlayback,
+  /// Begin playback command.
+  Begin {
+    /// Unused.
+    low_water_mark: u16,
+    /// Point Rate.
+	point_rate : u32,
+  },
   ClearEStop,
   EmergencyStop,
   Ping,
-  PrepareStream,
+
+
+  /// Single byte: 'p' (0x70)
+  ///
+  /// This command causes the playback system to enter the Prepared
+  /// state. The DAC resets its buffer to be empty and sets
+  /// "point_count" to 0. This command may only be sent if the light
+  /// engine is Ready and the playback system is Idle. If so, the DAC
+  /// replies with ACK; otherwise, it replies with NAK - Invalid
+  Prepare,
+
   QueueRateChange,
   Stop,
-  WriteData,
-  UnknownCommand { command: u8 },
+  Data,
+  Unknown { command: u8 },
 }
 
 impl Command {
   /// Returns the over-the-wire serialization of the command
   pub fn value(&self) -> u8 {
     match *self {
-      Command::BeginPlayback => 0x62,   // 'b'
+      Command::Begin { .. }=> 0x62,     // 'b'
       Command::ClearEStop => 0x63,      // 'c'
       Command::EmergencyStop=> 0x00,    // also recognizes 0xff
       Command::Ping => 0x3f,            // '?'
-      Command::PrepareStream => 0x70,   // 'p'
+      Command::Prepare => 0x70,         // 'p'
       Command::QueueRateChange => 0x74, // 'q'
       Command::Stop => 0x73,            // 's'
-      Command::WriteData => 0x64,       // 'd'
-      Command::UnknownCommand { command } => command,
+      Command::Data => 0x64,            // 'd'
+      Command::Unknown { command } => command,
     }
   }
 }
