@@ -6,8 +6,11 @@
 extern crate rand;
 use rand::Rng;
 
-/** The DAC periodically sends state information. */
+pub const COMMAND_BEGIN : u8   = 0x62;
+pub const COMMAND_DATA : u8    = 0x64;
+pub const COMMAND_PREPARE : u8 = 0x70;
 
+/** The DAC periodically sends state information. */
 #[derive(Clone)]
 pub struct DacStatus {
   pub protocol: u8,
@@ -179,7 +182,21 @@ pub enum Command {
 
   QueueRateChange,
   Stop,
-  Data,
+
+  /// This provides data for the DAC to add to its buffer. The data
+  /// values are full-scale (for instance, for color channels, 65535 is
+  /// full output); the least-significant bits of each word will be
+  /// ignored if the DAC’s resolution is less than 16 bits. The DAC will
+  /// reply with ACK if the incoming packet can fully fit in its buffer,
+  /// or NAK - Full if it cannot. It is valid for npoints to be zero; in
+  /// this case, no point will be added to the buffer, but the packet
+  /// will still be ACKed (as long as the DAC is Prepared or Playing.)
+  Data {
+    num_points: u16,
+    points: Vec<Point>
+  },
+
+  /// An unknown command.
   Unknown { command: u8 },
 }
 
@@ -194,7 +211,7 @@ impl Command {
       Command::Prepare => 0x70,         // 'p'
       Command::QueueRateChange => 0x74, // 'q'
       Command::Stop => 0x73,            // 's'
-      Command::Data => 0x64,            // 'd'
+      Command::Data { .. } => 0x64,     // 'd'
       Command::Unknown { command } => command,
     }
   }

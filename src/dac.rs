@@ -3,6 +3,9 @@
 use protocol::DacResponse;
 use protocol::Command;
 use protocol::DacStatus;
+use protocol::COMMAND_PREPARE;
+use protocol::COMMAND_BEGIN;
+use protocol::COMMAND_DATA;
 use std::net::TcpListener;
 use std::net::TcpStream;
 use std::io::Read;
@@ -37,8 +40,21 @@ impl Dac {
 
         loop {
           // Read-write loop
-          self.read_command(&mut stream);
-          self.write(&mut stream, 0x64);
+          let command = self.read_command(&mut stream);
+
+          match command {
+            Command::Begin { .. } => {
+              self.write(&mut stream, COMMAND_BEGIN);
+            },
+            Command::Prepare => {
+              self.write(&mut stream, COMMAND_PREPARE);
+            },
+            Command::Data { .. } => {
+              self.write(&mut stream, COMMAND_DATA);
+            },
+            _ => {
+            },
+          }
         }
       },
     };
@@ -53,19 +69,22 @@ impl Dac {
         Command::Unknown{ command: 0u8 } // TODO: Return error instead
       },
       Ok(size) => {
-        println!("Read: {}", size); 
+        println!("Read bytes: {}", size); 
 
         // TODO: Implement all commands
         match buf[0] {
-          0x64 => {
+          COMMAND_DATA => {
             println!("Read data");
-            Command::Data
+            println!("Bytes: {}, {}, {}", buf[0], buf[1], buf[2]);
+            let num = read_u16(buf[1 .. 2]);
+            let points = self.parse_points(&buf);
+            Command::Data { num_points: num, points: points }
           },
-          0x70 => {
+          COMMAND_PREPARE => {
             println!("Read prepare");
             Command::Prepare
           },
-          0x62 => {
+          COMMAND_BEGIN => {
             println!("Read begin");
             Command::Begin { low_water_mark: 0, point_rate: 0 }
           },
@@ -78,8 +97,8 @@ impl Dac {
     }
   }
 
-  fn read_points(&self) {
-    // TODO
+  fn parse_points(&self, buf: &[u8]) -> Vec<Point> {
+    Vec::new() // TODO
   }
 
   fn write(&self, stream: &mut TcpStream, command: u8) {
@@ -90,5 +109,14 @@ impl Dac {
       Err(_) => { println!("Write error."); },
     };
   }
+}
+
+// TODO/FIXME: Does Rust's casting use 2's complement? Do some maths.
+fn read_i16(bytes: [u8; 2]) -> i16 {                                              
+  (((bytes[0] as u16) << 8) | (bytes[1] as u16)) as i16 
+}
+
+fn read_u16(bytes: [u8; 2]) -> u16 {
+  ((bytes[0] as u16) << 8) | (bytes[1] as u16)
 }
 
