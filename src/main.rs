@@ -22,6 +22,8 @@ use graphics::draw_state::Blend;
 mod protocol;
 
 use net2::TcpBuilder;
+use rand::Rng;
+use std::time::Instant;
 use net2::UdpBuilder;
 use protocol::DacResponse;
 use protocol::ResponseState;
@@ -87,8 +89,26 @@ impl Broadcast {
   }
 }
 
+pub struct TimedPoint {
+  pub point: Point,
+  pub instant: Instant,
+}
+
+impl TimedPoint {
+  pub fn new(point: Point) -> TimedPoint {
+    TimedPoint {
+      point: point,
+      instant: Instant::now(),
+    }
+  }
+
+  pub fn can_draw(&self) -> bool {
+    self.instant.elapsed() < Duration::from_millis(100)
+  }
+}
+
 pub struct PointBuffer {
-  buffer: Vec<Point>,
+  buffer: Vec<TimedPoint>,
   next: usize,
   capacity: usize,
 }
@@ -101,17 +121,17 @@ pub struct AtomicPointBuffer {
 impl PointBuffer {
   pub fn new() -> PointBuffer {
     PointBuffer {
-      buffer: Vec::with_capacity(2000),
+      buffer: Vec::with_capacity(2),
       next: 0,
-      capacity: 2000,
+      capacity: 2,
     }
   }
 
-  pub fn add(&mut self, point: Point) {
+  pub fn add(&mut self, point: TimedPoint) {
     self.buffer.insert(self.next, point);
     self.next = (self.next + 1) % self.capacity; // FIXME: Capacity
   }
-  pub fn read(&self) -> &Vec<Point> {
+  pub fn read(&self) -> &Vec<TimedPoint> {
     &self.buffer
   }
 }
@@ -177,6 +197,23 @@ fn dac_thread(buffer: Arc<RwLock<PointBuffer>>) {
   let mut socket = tcp.bind("0.0.0.0:7765").unwrap(); // TODO
   let mut listener = socket.to_tcp_listener().unwrap(); // TODO */
 
+  loop {
+    sleep(Duration::from_millis(50)); 
+
+    match (*buffer).write() {
+      Err(_) => {},
+      Ok(mut pb) => {
+        println!("Adding point!");
+        pb.add(TimedPoint::new(Point::random()));
+      }
+    };
+
+  }
+
+
+
+
+
   let listener = TcpListener::bind("0.0.0.0:7765").unwrap();
   listener.set_ttl(500); // FIXME: Assume millisec
 
@@ -190,6 +227,8 @@ fn dac_thread(buffer: Arc<RwLock<PointBuffer>>) {
       Ok((mut stream, socket_addr)) => {
         println!("Connected!");
         //stream.set_ttl(500).unwrap(); // FIXME: Assume millisec
+
+
 
         // FIXME: THIS IS ABSOLUTE GARBAGE. MAKE A STATE MACHINE.
         loop {
@@ -257,7 +296,7 @@ fn dac_thread(buffer: Arc<RwLock<PointBuffer>>) {
                   Err(_) => {},
                   Ok(mut pb) => {
                     println!("Adding point!");
-                    pb.add(Point::random());
+                    pb.add(TimedPoint::new(Point::random()));
                   }
                 }
 
@@ -282,7 +321,7 @@ fn dac_thread(buffer: Arc<RwLock<PointBuffer>>) {
 
 fn gl_window(buffer: Arc<RwLock<PointBuffer>>) {
   let opengl = OpenGL::V3_2;
-  let (w, h) = (640, 480);
+  let (w, h) = (1280, 960);
   let ref mut window: GliumWindow =
     WindowSettings::new("glium_graphics: image_test", [w, h])
     .exit_on_esc(true).opengl(opengl).build().unwrap();
@@ -296,32 +335,59 @@ fn gl_window(buffer: Arc<RwLock<PointBuffer>>) {
       let mut target = window.draw();
       g2d.draw(&mut target, args.viewport(), |c, g| {
 
-        clear([0.8, 0.8, 0.8, 1.0], g);
+        let point_transform = c.transform.scale(0.05, 0.05);
+        let mut rng = rand::thread_rng();
 
-        g.clear_stencil(0);                                                     
+        clear([1.0; 4], g);
+
+        // Background
         Rectangle::new([0.0, 0.0, 0.0, 1.0])
-          .draw([0.0, 0.0, 640.0, 480.0], &c.draw_state, c.transform, g);
+          .draw([0.0, 0.0, 1280.0, 1280.0], &c.draw_state, c.transform, g);
 
         match (*buffer).read() {
           Err(_) => {},
           Ok(pb) => {
             let points = pb.read();
 
-            for point in points {
-              println!("{}, {}", point.x, point.y);
-              Rectangle::new([1.0, 1.0, 1.0, 1.0])
+            for timed_point in points {
+              /*if !timed_point.can_draw() {
+                continue;
+              }*/
+
+              let x = map_x(timed_point.point.x, 1280);
+              let y = map_y(timed_point.point.y, 960);
+
+              println!("{}, {}", x, y);
+              println!("{}, {}", timed_point.point.x, timed_point.point.y);
+
+              let r = rng.gen_range(0.0, 1.0);
+              let gr = rng.gen_range(0.0, 1.0);
+              let b = rng.gen_range(0.0, 1.0);
+
+              Ellipse::new([r, gr, b, 1.0])
                 .draw([
-                      point.x as f64, 
-                      point.y as f64, 
-                      point.x as f64 + 4.0, 
-                      point.y as f64 + 4.0], 
-                      &c.draw_state, c.transform, g);
+                      x, 
+                      y,
+                      10.0, 
+                      10.0,
+                ], 
+                &c.draw_state, c.transform, g);
 
             }
           },
         }
 
+        /*let x = 100.0;
+        let y = 100.0;
 
+
+        Ellipse::new([1.0, 1.0, 1.0, 1.0])
+          .draw([x, y, x, y, ], 
+          &c.draw_state, transform, g);
+
+        //clear([0.0, 0.0, 1.0, 1.0], g);
+        //g.clear_color([0.0, 1.0, 0.0, 1.0]);*/
+        sleep(Duration::from_millis(500)); 
 
       });
 
@@ -331,9 +397,11 @@ fn gl_window(buffer: Arc<RwLock<PointBuffer>>) {
 }
 
 pub fn map_x(x: u16, width: u16) -> f64 {
-  0.0
+  let scale = width as f64 / 65535.0;
+  x as f64 * scale
 }
 
 pub fn map_y(y: u16, height: u16) -> f64 {
-  0.0
+  let scale = height as f64 / 65535.0;
+  y as f64 * scale
 }
