@@ -5,9 +5,9 @@ extern crate rand;
 use std::process;
 use dac::Dac;
 use glium::DisplayBuild;
-use graphics::draw_state::Blend; 
-use piston::input::*; 
-use piston::window::WindowSettings; 
+use graphics::draw_state::Blend;
+use piston::input::*;
+use piston::window::WindowSettings;
 use protocol::Point;
 use rand::Rng;
 use std::sync::Arc;
@@ -17,7 +17,7 @@ use std::thread::sleep;
 use std::time::Duration;
 use std::time::Instant;
 use ilda::limit;
-use glium_graphics::{                                                           
+use glium_graphics::{
     Flip, Glium2d, GliumWindow, OpenGL, Texture, TextureSettings
 };
 
@@ -71,18 +71,6 @@ impl PointBuffer {
   }
 }
 
-/*impl AtomicPointBuffer {
-  pub fn new() -> AtomicPointBuffer {
-    let buffer = PointBuffer::new();
-    AtomicPointBuffer {
-      holder: Arc::new(RwLock::new(buffer))
-    }
-  }
-
-  pub get(&self) -> &mut PointBuffer {
-  }
-}*/
-
 pub fn gl_window(dac: Arc<Dac>) {
   let opengl = OpenGL::V3_2;
   let ref mut window: GliumWindow =
@@ -90,9 +78,9 @@ pub fn gl_window(dac: Arc<Dac>) {
     .exit_on_esc(true).opengl(opengl).build().unwrap();
 
 
-  let mut g2d = Glium2d::new(opengl, window); 
-  while let Some(e) = window.next() { 
-    if let Some(args) = e.render_args() { 
+  let mut g2d = Glium2d::new(opengl, window);
+  while let Some(e) = window.next() {
+    if let Some(args) = e.render_args() {
       use graphics::*;
 
       /*let point_ring_buffer = Vec::new();
@@ -109,7 +97,7 @@ pub fn gl_window(dac: Arc<Dac>) {
 
         // Background
         Rectangle::new([0.0, 0.0, 0.0, 1.0])
-          .draw([0.0, 0.0, WINDOW_WIDTH as f64, WINDOW_HEIGHT as f64], 
+          .draw([0.0, 0.0, WINDOW_WIDTH as f64, WINDOW_HEIGHT as f64],
                 &ctx.draw_state,
                 ctx.transform,
                 gfx);
@@ -121,19 +109,15 @@ pub fn gl_window(dac: Arc<Dac>) {
         for point in points {
           i += 1;
           // TODO: This is a lame hack to deal with queue consumption being too slow
-          if i % 100 != 0 {
+          if i % 50 != 0 {
             continue;
           }
 
           let x = map_x(point.x, WINDOW_WIDTH);
           let y = map_y(point.y, WINDOW_HEIGHT);
 
-          println!("{}, {}", point.x, point.y);
+          //println!("{}, {}", point.x, point.y);
           //println!("{}, {}", x, y);
-
-          /*let r = rng.gen_range(0.0, 1.0);
-          let gr = rng.gen_range(0.0, 1.0);
-          let b = rng.gen_range(0.0, 1.0);*/
 
           let r = map_color(point.r);
           let gr = map_color(point.g);
@@ -142,12 +126,12 @@ pub fn gl_window(dac: Arc<Dac>) {
           Ellipse::new([r, gr, b, 1.0])
             .draw([
                   // Position
-                  x, 
+                  x,
                   y,
                   // Size of shape.
-                  10.0, 
                   10.0,
-            ], 
+                  10.0,
+            ],
             &ctx.draw_state, ctx.transform, gfx);
         }
         /*match (*buffer).read() {
@@ -173,19 +157,19 @@ pub fn gl_window(dac: Arc<Dac>) {
               Ellipse::new([r, gr, b, 1.0])
                 .draw([
                       // Position
-                      x, 
+                      x,
                       y,
                       // Size of shape.
-                      10.0, 
                       10.0,
-                ], 
+                      10.0,
+                ],
                 &c.draw_state, c.transform, g);
 
             }
           },
         }*/
 
-        sleep(Duration::from_millis(50)); 
+        sleep(Duration::from_millis(50));
       });
 
       target.finish().unwrap();
@@ -196,12 +180,14 @@ pub fn gl_window(dac: Arc<Dac>) {
   process::exit(0);
 }
 
+// FIXME: This is abhorrent.
 pub fn map_x(x: i16, width: u32) -> f64 {
   let tx = (x as i32).saturating_add(limit::MAX_X as i32);
   let scale = width as f64 / limit::WIDTH as f64;
   tx as f64 * scale
 }
 
+// FIXME: This is abhorrent.
 pub fn map_y(y: i16, height: u32) -> f64 {
   // NB: Have to invert y since the vertical coordinate system transforms.
   let ty = ((y * -1) as i32).saturating_add(limit::MAX_Y as i32);
@@ -215,10 +201,10 @@ pub fn map_color(c: u16) -> f32 {
 
 /*/// Transform x-coordinate.
 fn t_x(x : i16, img_width: u32) -> u32 {
-  // FIXME: This is abhorrent.                                                  
+  // FIXME: This is abhorrent.
   let ix = (x as i32).saturating_add(limit::MAX_X as i32);
   let scale = (img_width as f64) / (limit::WIDTH as f64);
-  ((ix as f64 * scale) as i32).abs() as u32 
+  ((ix as f64 * scale) as i32).abs() as u32
 }
 
 /// Transform y-coordinate.
@@ -227,7 +213,7 @@ fn t_y(y : i16, img_height: u32) -> u32 {
   // NB: Have to invert y since the vertical coordinate system transforms.
   let iy = ((y * -1) as i32).saturating_add(limit::MAX_Y as i32);
   let scale = (img_height as f64) / (limit::HEIGHT as f64);
-  ((iy as f64 * scale) as i32).abs() as u32 
+  ((iy as f64 * scale) as i32).abs() as u32
 }
 */
 
