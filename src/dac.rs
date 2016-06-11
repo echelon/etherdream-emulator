@@ -79,8 +79,9 @@ impl Dac {
         match buf[0] {
           COMMAND_DATA => {
             println!("Read data");
-            self.read_point_data(stream, buf, size);
-            Command::Prepare // TODO TODO TODO TODO TODO
+            let (num_points, point_bytes) = 
+                self.read_point_data(stream, buf, size);
+            self.parse_points(num_points, point_bytes)
           },
           COMMAND_PREPARE => {
             println!("Read prepare");
