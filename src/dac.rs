@@ -119,10 +119,6 @@ impl Dac {
 
     point_buf.extend_from_slice(&buf[3.. read_size]); // Omit 3 header bytes
 
-    //println!("  - Num points: {}", num_points);
-    //println!("  - Already read bytes: {}", read_size);
-    //println!("  - Total size: {}", total_size);
-
     while total_size > already_read {
       let mut read_buf = [0u8; 2048];
 
@@ -133,15 +129,12 @@ impl Dac {
           return (0, Vec::new());
         },
         Ok(size) => {
-          //println!("    - Read: {}", size);
           point_buf.extend_from_slice(&read_buf[0 .. size]);
           already_read += size;
-          //println!("    - Already read bytes: {}", already_read);
         },
       }
     }
 
-    //println!("  - Read done!");
     (num_points, point_buf)
   }
 
