@@ -90,11 +90,19 @@ impl Broadcast {
 fn main() {
   let mut buffer = Arc::new(RwLock::new(PointBuffer::new()));
 
+  let mut dac = Arc::new(Dac::new());
+  let dac2 = dac.clone();
+  let dac3 = dac.clone();
+
   let buffer2 = buffer.clone();
   let buffer3 = buffer.clone();
 
   thread::spawn(|| broadcast_thread());
-  thread::spawn(|| dac_thread(buffer2));
+  thread::spawn(move || dac2.listen());
+  thread::spawn(move || gl_window(dac3));
+
+
+  //thread::spawn(|| dac_thread(buffer2));
   //thread::spawn(|| gl_window(buffer3));
 
   loop {

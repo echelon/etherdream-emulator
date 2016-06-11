@@ -26,6 +26,9 @@ pub struct Dac {
 
   /// Queue of points read from a client.
   points: Mutex<PointQueue>,
+
+  /// Maximum size of the queue. (TODO: Notes on [non-]blocking.)
+  queue_limit: usize,
 }
 
 impl Dac {
@@ -34,6 +37,7 @@ impl Dac {
       // TODO: Report the virtual dac state to the client.
       state: DacStatus::empty(),
       points: Mutex::new(PointQueue::new()),
+      queue_limit: 60_000,
     }
   }
 
@@ -92,10 +96,21 @@ impl Dac {
     }
   }
 
-  fn enqueue_points(&self, points: Vec<Point>) {
+  /// Enqueue points. If the queue is full, reject and return false.
+  fn enqueue_points(&self, points: Vec<Point>) -> bool {
     match self.points.lock() {
-      Err(_) => {},
-      Ok(mut queue) => { queue.extend(points); }
+      Err(_) => {
+        false
+      },
+      Ok(mut queue) => { 
+        if queue.len() + points.len() > self.queue_limit {
+          //println!("Queue max reached.");
+          false
+        } else {
+          queue.extend(points); 
+          true
+        }
+      }
     }
   }
 
@@ -109,12 +124,12 @@ impl Dac {
         Command::Unknown{ command: 0u8 } // TODO: Return error instead
       },
       Ok(size) => {
-        println!("Read bytes: {}", size);
+        //println!("Read bytes: {}", size);
 
         // TODO: Implement all commands
         match buf[0] {
           COMMAND_DATA => {
-            println!("Read data");
+            //println!("Read data");
             let (num_points, point_bytes) = 
                 self.read_point_data(stream, buf, size);
 
@@ -202,7 +217,7 @@ impl Dac {
       &DacResponse::new(ResponseState::Ack, command,
                         self.state.clone()).serialize());
     match write_result {
-      Ok(size) => { println!("Write: {}", size); },
+      Ok(size) => { /*println!("Write: {}", size);*/ },
       Err(_) => { println!("Write error."); },
     };
   }

@@ -2,6 +2,7 @@
 
 extern crate rand;
 
+use dac::Dac;
 use glium::DisplayBuild;
 use graphics::draw_state::Blend; 
 use piston::input::*; 
@@ -77,7 +78,7 @@ impl PointBuffer {
   }
 }*/
 
-pub fn gl_window(buffer: Arc<RwLock<PointBuffer>>) {
+pub fn gl_window(dac: Arc<Dac>) {
   let opengl = OpenGL::V3_2;
   let (w, h) = (1280, 960);
   let ref mut window: GliumWindow =
@@ -89,6 +90,10 @@ pub fn gl_window(buffer: Arc<RwLock<PointBuffer>>) {
   while let Some(e) = window.next() { 
     if let Some(args) = e.render_args() { 
       use graphics::*;
+
+      /*let point_ring_buffer = Vec::new();
+      let ring_size : usize = 1000;
+      let ring_pos : usize = 0;*/
 
       let mut target = window.draw();
       g2d.draw(&mut target, args.viewport(), |c, g| {
@@ -102,7 +107,38 @@ pub fn gl_window(buffer: Arc<RwLock<PointBuffer>>) {
         Rectangle::new([0.0, 0.0, 0.0, 1.0])
           .draw([0.0, 0.0, 1280.0, 1280.0], &c.draw_state, c.transform, g);
 
-        match (*buffer).read() {
+        let points = dac.drain_points();
+        //println!("points len: {}", points.len());
+
+        let mut i = 0;
+        for point in points {
+          i += 1;
+          if i % 100 != 0 {
+            continue;
+          }
+
+          let x = map_x(point.x, 1280);
+          let y = map_y(point.y, 960);
+
+          println!("{}, {}", point.x, point.y);
+          //println!("{}, {}", x, y);
+
+          let r = rng.gen_range(0.0, 1.0);
+          let gr = rng.gen_range(0.0, 1.0);
+          let b = rng.gen_range(0.0, 1.0);
+
+          Ellipse::new([r, gr, b, 1.0])
+            .draw([
+                  // Position
+                  x, 
+                  y,
+                  // Size of shape.
+                  10.0, 
+                  10.0,
+            ], 
+            &c.draw_state, c.transform, g);
+        }
+        /*match (*buffer).read() {
           Err(_) => {},
           Ok(pb) => {
             let points = pb.read();
@@ -135,7 +171,7 @@ pub fn gl_window(buffer: Arc<RwLock<PointBuffer>>) {
 
             }
           },
-        }
+        }*/
 
         sleep(Duration::from_millis(50)); 
       });
