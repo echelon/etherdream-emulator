@@ -1,29 +1,39 @@
 // Copyright (c) 2016 Brandon Thomas <bt@brand.io>, <echelon@gmail.com>
 
-use protocol::DacResponse;
-use protocol::Command;
-use protocol::DacStatus;
-use protocol::COMMAND_PREPARE;
 use protocol::COMMAND_BEGIN;
 use protocol::COMMAND_DATA;
-use std::net::TcpListener;
-use std::net::TcpStream;
-use std::io::Read;
-use std::io::Write;
+use protocol::COMMAND_PREPARE;
+use protocol::Command;
+use protocol::DacResponse;
+use protocol::DacStatus;
 use protocol::Point;
 use protocol::ResponseState;
-
-pub struct Dac {
-  state: DacStatus,
-}
+use std::collections::VecDeque;
+use std::io::Read;
+use std::io::Write;
+use std::net::TcpListener;
+use std::net::TcpStream;
+use std::sync::Arc;
+use std::sync::Mutex;
 
 /// Size of a single point in bytes.
 const POINT_SIZE : usize = 18;
 
+type PointQueue = VecDeque<Point>;
+
+pub struct Dac {
+  state: DacStatus,
+
+  /// Queue of points read from a client.
+  points: Mutex<PointQueue>,
+}
+
 impl Dac {
   pub fn new() -> Dac {
     Dac {
+      // TODO: Report the virtual dac state to the client.
       state: DacStatus::empty(),
+      points: Mutex::new(PointQueue::new()),
     }
   }
 
@@ -52,15 +62,41 @@ impl Dac {
             Command::Prepare => {
               self.write(&mut stream, COMMAND_PREPARE);
             },
-            Command::Data { .. } => {
+            Command::Data { num_points, points } => {
+              self.enqueue_points(points);
               self.write(&mut stream, COMMAND_DATA);
             },
             _ => {
+              println!("Unhandled command.");
             },
           }
         }
       },
     };
+  }
+
+  /// Drain points off the internal queue.
+  pub fn drain_points(&self) -> Vec<Point> {
+    match self.points.lock() {
+      Err(_) => {
+        println!("Error obtaining lock.");
+        Vec::new()
+      },
+      Ok(mut queue) => {
+        let mut points = Vec::new();
+        while let Some(point) = queue.pop_front() {
+          points.push(point);
+        }
+        points
+      },
+    }
+  }
+
+  fn enqueue_points(&self, points: Vec<Point>) {
+    match self.points.lock() {
+      Err(_) => {},
+      Ok(mut queue) => { queue.extend(points); }
+    }
   }
 
   fn read_command(&self, stream: &mut TcpStream) -> Command {
