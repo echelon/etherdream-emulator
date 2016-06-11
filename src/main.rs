@@ -171,7 +171,7 @@ fn dac_thread(buffer: Arc<RwLock<PointBuffer>>) {
         loop {
           let mut state = DacStatus::empty();
           //let mut bytes = [0u8; 56]; // TODO: Better buffer
-          let mut bytes = [0u8; 2048]; // TODO: Better buffer
+          let mut bytes = [0u8; 5048 * 4]; // TODO: Better buffer
 
           // ***** A *****
           let mut write_result = stream.write(&DacResponse::info().serialize());
