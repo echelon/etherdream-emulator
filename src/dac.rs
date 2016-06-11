@@ -81,7 +81,10 @@ impl Dac {
             println!("Read data");
             let (num_points, point_bytes) = 
                 self.read_point_data(stream, buf, size);
-            self.parse_points(num_points, point_bytes)
+
+            let points = self.parse_points(num_points, point_bytes);
+
+            Command::Data { num_points: num_points, points: points }
           },
           COMMAND_PREPARE => {
             println!("Read prepare");
@@ -116,9 +119,9 @@ impl Dac {
 
     point_buf.extend_from_slice(&buf[3.. read_size]); // Omit 3 header bytes
 
-    println!("  - Num points: {}", num_points);
-    println!("  - Already read bytes: {}", read_size);
-    println!("  - Total size: {}", total_size);
+    //println!("  - Num points: {}", num_points);
+    //println!("  - Already read bytes: {}", read_size);
+    //println!("  - Total size: {}", total_size);
 
     while total_size > already_read {
       let mut read_buf = [0u8; 2048];
@@ -130,37 +133,40 @@ impl Dac {
           return (0, Vec::new());
         },
         Ok(size) => {
-          println!("    - Read: {}", size);
-          //point_buf.extend(read_buf.iter());
+          //println!("    - Read: {}", size);
           point_buf.extend_from_slice(&read_buf[0 .. size]);
-
           already_read += size;
-          println!("    - Already read bytes: {}", already_read);
+          //println!("    - Already read bytes: {}", already_read);
         },
       }
     }
 
-    println!("  - Read done!");
-
+    //println!("  - Read done!");
     (num_points, point_buf)
   }
 
-  fn parse_points(&self, num_points: u16, point_data: Vec<u8>) -> Command {
-    println!("  -> num_points = {}", num_points);
-    println!("  -> point_data len = {}", point_data.len());
+  /// Parse raw point bytes into structured Points.
+  fn parse_points(&self, num_points: u16, point_data: Vec<u8>) 
+      -> Vec<Point> {
+    let mut points : Vec<Point> = Vec::new();
 
-    let calculated_len = POINT_SIZE * num_points as usize;
+    for i in 0 .. num_points {
+      let j = i as usize * POINT_SIZE;
+      points.push(Point {
+        control: read_u16(&point_data[j .. j+2]),
+        x:       read_u16(&point_data[j+2 .. j+4]),
+        y:       read_u16(&point_data[j+4 .. j+6]),
+        i:       read_u16(&point_data[j+6 .. j+8]),
+        r:       read_u16(&point_data[j+8 .. j+10]),
+        g:       read_u16(&point_data[j+10 .. j+12]),
+        b:       read_u16(&point_data[j+12 .. j+14]),
+        u1:      read_u16(&point_data[j+14 .. j+16]),
+        u2:      read_u16(&point_data[j+16 .. j+18]),
+      })
+    }
 
-    println!("  -> calculated len = {}", calculated_len);
-    println!("  -> diff in size = {}", (calculated_len - point_data.len()));
-
-    Command::Data { num_points: num_points, points: Vec::new() }
+    points
   }
-
-  /*fn parse_points(&self, buf: &[u8], length: usize) -> Vec<Point> {
-    println!("Buf len: {}, len: {}", buf.len(), length);
-    Vec::new() // TODO
-  }*/
 
   fn write(&self, stream: &mut TcpStream, command: u8) {
     let write_result = stream.write(
