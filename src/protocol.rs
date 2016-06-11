@@ -237,8 +237,8 @@ struct DataCommand {
 
 pub struct Point {
   pub control: u16,
-  pub x: u16,
-  pub y: u16,
+  pub x: i16,
+  pub y: i16,
   pub i: u16,
   pub r: u16,
   pub g: u16,

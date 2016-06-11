@@ -2,6 +2,7 @@
 
 extern crate rand;
 
+use std::process;
 use dac::Dac;
 use glium::DisplayBuild;
 use graphics::draw_state::Blend; 
@@ -15,9 +16,13 @@ use std::sync::RwLock;
 use std::thread::sleep;
 use std::time::Duration;
 use std::time::Instant;
+use ilda::limit;
 use glium_graphics::{                                                           
     Flip, Glium2d, GliumWindow, OpenGL, Texture, TextureSettings
 };
+
+const WINDOW_WIDTH : u32 = 1280;
+const WINDOW_HEIGHT : u32 = 1280;
 
 pub struct TimedPoint {
   pub point: Point,
@@ -80,9 +85,8 @@ impl PointBuffer {
 
 pub fn gl_window(dac: Arc<Dac>) {
   let opengl = OpenGL::V3_2;
-  let (w, h) = (1280, 960);
   let ref mut window: GliumWindow =
-    WindowSettings::new("glium_graphics: image_test", [w, h])
+    WindowSettings::new("glium_graphics: image_test", [WINDOW_WIDTH, WINDOW_HEIGHT])
     .exit_on_esc(true).opengl(opengl).build().unwrap();
 
 
@@ -96,16 +100,19 @@ pub fn gl_window(dac: Arc<Dac>) {
       let ring_pos : usize = 0;*/
 
       let mut target = window.draw();
-      g2d.draw(&mut target, args.viewport(), |c, g| {
+      g2d.draw(&mut target, args.viewport(), |ctx, gfx| {
 
-        let point_transform = c.transform.scale(0.05, 0.05);
+        let point_transform = ctx.transform.scale(0.05, 0.05);
         let mut rng = rand::thread_rng();
 
-        clear([1.0; 4], g);
+        clear([1.0; 4], gfx);
 
         // Background
         Rectangle::new([0.0, 0.0, 0.0, 1.0])
-          .draw([0.0, 0.0, 1280.0, 1280.0], &c.draw_state, c.transform, g);
+          .draw([0.0, 0.0, WINDOW_WIDTH as f64, WINDOW_HEIGHT as f64], 
+                &ctx.draw_state,
+                ctx.transform,
+                gfx);
 
         let points = dac.drain_points();
         //println!("points len: {}", points.len());
@@ -113,19 +120,24 @@ pub fn gl_window(dac: Arc<Dac>) {
         let mut i = 0;
         for point in points {
           i += 1;
+          // TODO: This is a lame hack to deal with queue consumption being too slow
           if i % 100 != 0 {
             continue;
           }
 
-          let x = map_x(point.x, 1280);
-          let y = map_y(point.y, 960);
+          let x = map_x(point.x, WINDOW_WIDTH);
+          let y = map_y(point.y, WINDOW_HEIGHT);
 
           println!("{}, {}", point.x, point.y);
           //println!("{}, {}", x, y);
 
-          let r = rng.gen_range(0.0, 1.0);
+          /*let r = rng.gen_range(0.0, 1.0);
           let gr = rng.gen_range(0.0, 1.0);
-          let b = rng.gen_range(0.0, 1.0);
+          let b = rng.gen_range(0.0, 1.0);*/
+
+          let r = map_color(point.r);
+          let gr = map_color(point.g);
+          let b = map_color(point.b);
 
           Ellipse::new([r, gr, b, 1.0])
             .draw([
@@ -136,7 +148,7 @@ pub fn gl_window(dac: Arc<Dac>) {
                   10.0, 
                   10.0,
             ], 
-            &c.draw_state, c.transform, g);
+            &ctx.draw_state, ctx.transform, gfx);
         }
         /*match (*buffer).read() {
           Err(_) => {},
@@ -179,15 +191,43 @@ pub fn gl_window(dac: Arc<Dac>) {
       target.finish().unwrap();
     }
   }
+
+  println!("Terminating process.");
+  process::exit(0);
 }
 
-pub fn map_x(x: u16, width: u16) -> f64 {
-  let scale = width as f64 / 65535.0;
-  x as f64 * scale
+pub fn map_x(x: i16, width: u32) -> f64 {
+  let tx = (x as i32).saturating_add(limit::MAX_X as i32);
+  let scale = width as f64 / limit::WIDTH as f64;
+  tx as f64 * scale
 }
 
-pub fn map_y(y: u16, height: u16) -> f64 {
-  let scale = height as f64 / 65535.0;
-  y as f64 * scale
+pub fn map_y(y: i16, height: u32) -> f64 {
+  // NB: Have to invert y since the vertical coordinate system transforms.
+  let ty = ((y * -1) as i32).saturating_add(limit::MAX_Y as i32);
+  let scale = height as f64 / limit::HEIGHT as f64;
+  ty as f64 * scale
 }
+
+pub fn map_color(c: u16) -> f32 {
+  c as f32 / 65535.0
+}
+
+/*/// Transform x-coordinate.
+fn t_x(x : i16, img_width: u32) -> u32 {
+  // FIXME: This is abhorrent.                                                  
+  let ix = (x as i32).saturating_add(limit::MAX_X as i32);
+  let scale = (img_width as f64) / (limit::WIDTH as f64);
+  ((ix as f64 * scale) as i32).abs() as u32 
+}
+
+/// Transform y-coordinate.
+fn t_y(y : i16, img_height: u32) -> u32 {
+  // FIXME: This is abhorrent.
+  // NB: Have to invert y since the vertical coordinate system transforms.
+  let iy = ((y * -1) as i32).saturating_add(limit::MAX_Y as i32);
+  let scale = (img_height as f64) / (limit::HEIGHT as f64);
+  ((iy as f64 * scale) as i32).abs() as u32 
+}
+*/
 

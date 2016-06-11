@@ -4,6 +4,7 @@
 extern crate rand;
 extern crate net2;
 
+extern crate ilda;
 extern crate graphics;                                                          
 extern crate glium;
 extern crate glium_graphics;
@@ -98,7 +99,7 @@ fn main() {
   let buffer3 = buffer.clone();
 
   thread::spawn(|| broadcast_thread());
-  thread::spawn(move || dac2.listen());
+  thread::spawn(move || dac2.listen_loop());
   thread::spawn(move || gl_window(dac3));
 
 

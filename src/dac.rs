@@ -41,6 +41,10 @@ impl Dac {
     }
   }
 
+  pub fn listen_loop(&self) {
+    loop { self.listen(); }
+  }
+
   pub fn listen(&self) {
     let listener = TcpListener::bind("0.0.0.0:7765").unwrap();
     listener.set_ttl(500); // FIXME: I'm assuming millisec here.
@@ -72,6 +76,7 @@ impl Dac {
             },
             _ => {
               println!("Unhandled command.");
+              return;
             },
           }
         }
@@ -198,8 +203,8 @@ impl Dac {
       let j = i as usize * POINT_SIZE;
       points.push(Point {
         control: read_u16(&point_data[j .. j+2]),
-        x:       read_u16(&point_data[j+2 .. j+4]),
-        y:       read_u16(&point_data[j+4 .. j+6]),
+        x:       read_i16(&point_data[j+2 .. j+4]),
+        y:       read_i16(&point_data[j+4 .. j+6]),
         i:       read_u16(&point_data[j+6 .. j+8]),
         r:       read_u16(&point_data[j+8 .. j+10]),
         g:       read_u16(&point_data[j+10 .. j+12]),
