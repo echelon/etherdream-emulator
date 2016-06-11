@@ -100,6 +100,7 @@ impl Dac {
     }
   }
 
+  // TODO: Simplify and clean up
   /// Continue streaming point data payload.
   /// Returns the number of points as well as the point bytes.
   fn read_point_data(&self, stream: &mut TcpStream, buf: [u8; 2048],
@@ -113,7 +114,7 @@ impl Dac {
     let mut already_read = read_size;
     let mut point_buf : Vec<u8> = Vec::new();
 
-    point_buf.extend_from_slice(&buf[3.. 2048]); // Omit 3 header bytes
+    point_buf.extend_from_slice(&buf[3.. read_size]); // Omit 3 header bytes
 
     println!("  - Num points: {}", num_points);
     println!("  - Already read bytes: {}", read_size);
@@ -130,7 +131,9 @@ impl Dac {
         },
         Ok(size) => {
           println!("    - Read: {}", size);
-          point_buf.extend(read_buf.iter());
+          //point_buf.extend(read_buf.iter());
+          point_buf.extend_from_slice(&read_buf[0 .. size]);
+
           already_read += size;
           println!("    - Already read bytes: {}", already_read);
         },
@@ -139,25 +142,18 @@ impl Dac {
 
     println!("  - Read done!");
 
-    /*if total_size > total_read {
-      println!("Read everything.");
-    } else {
-      println!("More to read.");
-    }*/
-
-    /*match stream.read(&mut buf) {
-      Err(_) => {
-        println!("Read error.");
-        Command::Unknown{ command: 0u8 } // TODO: Return error instead
-      },
-      Ok(size) => {
-      },
-    }*/
-
     (num_points, point_buf)
   }
 
   fn parse_points(&self, num_points: u16, point_data: Vec<u8>) -> Command {
+    println!("  -> num_points = {}", num_points);
+    println!("  -> point_data len = {}", point_data.len());
+
+    let calculated_len = POINT_SIZE * num_points as usize;
+
+    println!("  -> calculated len = {}", calculated_len);
+    println!("  -> diff in size = {}", (calculated_len - point_data.len()));
+
     Command::Data { num_points: num_points, points: Vec::new() }
   }
 
