@@ -2,6 +2,7 @@
 name = "etherdream-emulator"
 version = "0.0.1"
 dependencies = [
+ "byteorder 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "glium 0.14.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ilda 0.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",

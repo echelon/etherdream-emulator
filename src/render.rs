@@ -21,8 +21,11 @@ use glium_graphics::{
     Flip, Glium2d, GliumWindow, OpenGL, Texture, TextureSettings
 };
 
-const WINDOW_WIDTH : u32 = 1280;
-const WINDOW_HEIGHT : u32 = 1280;
+//const WINDOW_WIDTH : u32 = 1280;
+//const WINDOW_HEIGHT : u32 = 1280;
+
+const WINDOW_WIDTH : u32 = 600;
+const WINDOW_HEIGHT : u32 = 600;
 
 pub struct TimedPoint {
   pub point: Point,
@@ -110,7 +113,7 @@ pub fn gl_window(dac: Arc<Dac>) {
           i += 1;
           // TODO: This is a lame hack to deal with queue consumption being too slow
           if i % 50 != 0 {
-            continue;
+            //continue;
           }
 
           let x = map_x(point.x, WINDOW_WIDTH);

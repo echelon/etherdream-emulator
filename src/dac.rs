@@ -15,6 +15,7 @@ use std::net::TcpListener;
 use std::net::TcpStream;
 use std::sync::Arc;
 use std::sync::Mutex;
+use std::sync::RwLock;
 
 /// Size of a single point in bytes.
 const POINT_SIZE : usize = 18;
@@ -22,7 +23,10 @@ const POINT_SIZE : usize = 18;
 type PointQueue = VecDeque<Point>;
 
 pub struct Dac {
-  state: DacStatus,
+  // TODO: Refactor so locking not required. Only a single thread
+  // needs this.
+  /// Runtime state of the virtual dac.
+  status: RwLock<DacStatus>,
 
   /// Queue of points read from a client.
   points: Mutex<PointQueue>,
@@ -34,8 +38,7 @@ pub struct Dac {
 impl Dac {
   pub fn new() -> Dac {
     Dac {
-      // TODO: Report the virtual dac state to the client.
-      state: DacStatus::empty(),
+      status: RwLock::new(DacStatus::empty()),
       points: Mutex::new(PointQueue::new()),
       queue_limit: 60_000,
     }
@@ -46,6 +49,7 @@ impl Dac {
   }
 
   pub fn listen(&self) {
+    // NB: Mutable only to change `status`
     let listener = TcpListener::bind("0.0.0.0:7765").unwrap();
     listener.set_ttl(500); // FIXME: I'm assuming millisec here.
 
@@ -103,6 +107,7 @@ impl Dac {
 
   /// Enqueue points. If the queue is full, reject and return false.
   fn enqueue_points(&self, points: Vec<Point>) -> bool {
+    // NB: Mutable only to change `status`
     match self.points.lock() {
       Err(_) => {
         false
@@ -113,6 +118,12 @@ impl Dac {
           false
         } else {
           queue.extend(points); 
+          match self.status.try_write() {
+            Err(_) => {},
+            Ok(mut status) => {
+              status.buffer_fullness = queue.len() as u16;
+            },
+          }
           true
         }
       }
@@ -218,9 +229,16 @@ impl Dac {
   }
 
   fn write(&self, stream: &mut TcpStream, command: u8) {
+    let status = match self.status.read() {
+      Err(_) => { DacStatus::empty() },
+      Ok(s) => { s.clone() },
+    };
+
+    //println!("Fullness: {}", status.buffer_fullness);
+
     let write_result = stream.write(
-      &DacResponse::new(ResponseState::Ack, command,
-                        self.state.clone()).serialize());
+      &DacResponse::new(ResponseState::Ack, command, status).serialize());
+
     match write_result {
       Ok(size) => { /*println!("Write: {}", size);*/ },
       Err(_) => { println!("Write error."); },

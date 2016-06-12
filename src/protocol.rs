@@ -4,6 +4,8 @@
 // See http://ether-dream.com/protocol.html
 
 extern crate rand;
+
+use byteorder::{LittleEndian, WriteBytesExt};
 use rand::Rng;
 
 pub const COMMAND_BEGIN : u8   = 0x62;
@@ -134,26 +136,31 @@ impl DacStatus {
   // FIXME: Serialization massively sucks.
   pub fn serialize(&self) -> Vec<u8> {
     let mut v = Vec::new();
+
+    //let mut wtr = vec![];
+
     v.push(self.protocol);
     v.push(self.light_engine_state);
     v.push(self.playback_state);
     v.push(self.source);
-    v.push(0); // TODO
-    v.push(0);
-    v.push(0);
-    v.push(0);
-    v.push(0);
-    v.push(0);
-    v.push(0);
-    v.push(0);
-    v.push(0);
-    v.push(0);
-    v.push(0);
-    v.push(0);
-    v.push(0);
-    v.push(0);
-    v.push(0);
-    v.push(0);
+    v.push(0); // TODO: light_engine_flags[0]
+    v.push(0); // TODO: light_engine_flags[1]
+    v.push(0); // TODO: playback_flags[0]
+    v.push(0); // TODO: playback_flags[1]
+    v.push(0); // TODO: source_flags[0]
+    v.push(0); // TODO: source_flags[1]
+
+    v.write_u16::<LittleEndian>(self.buffer_fullness).unwrap();
+    //v.push(0); // TODO: buffer_fullness[0]
+    //v.push(0); // TODO: buffer_fullness[1]
+    v.push(0); // TODO: point_rate[0]
+    v.push(0); // TODO: point_rate[1]
+    v.push(0); // TODO: point_rate[2]
+    v.push(0); // TODO: point_rate[3]
+    v.push(0); // TODO: point_count[0]
+    v.push(0); // TODO: point_count[1]
+    v.push(0); // TODO: point_count[2]
+    v.push(0); // TODO: point_count[3]
     v
   }
 }

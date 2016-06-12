@@ -3,6 +3,7 @@
 
 extern crate rand;
 extern crate net2;
+extern crate byteorder;
 
 extern crate ilda;
 extern crate graphics;                                                          
@@ -62,18 +63,7 @@ impl Broadcast {
       sw_revision: 0u16,
       buffer_capacity: 0u16,
       max_point_rate: 0u32,
-      status: DacStatus {
-        protocol: 0u8,
-        light_engine_state: 0u8,
-        playback_state: 0u8,
-        source: 0u8,
-        light_engine_flags: 0u16,
-        playback_flags: 0u16,
-        source_flags: 0u16,
-        buffer_fullness: 0u16,
-        point_rate: 0u32,
-        point_count: 0u32,
-      }
+      status: DacStatus::empty(),
     }
   }
 
@@ -91,24 +81,16 @@ impl Broadcast {
 fn main() {
   let mut buffer = Arc::new(RwLock::new(PointBuffer::new()));
 
-  let mut dac = Arc::new(Dac::new());
+  let dac = Arc::new(Dac::new());
   let dac2 = dac.clone();
-  let dac3 = dac.clone();
 
   let buffer2 = buffer.clone();
   let buffer3 = buffer.clone();
 
   thread::spawn(|| broadcast_thread());
-  thread::spawn(move || dac2.listen_loop());
-  thread::spawn(move || gl_window(dac3));
+  thread::spawn(move || gl_window(dac2));
 
-
-  //thread::spawn(|| dac_thread(buffer2));
-  //thread::spawn(|| gl_window(buffer3));
-
-  loop {
-    sleep(Duration::from_secs(10)); // TODO: Join other threads
-  }
+  dac.listen_loop();
 }
 
 fn broadcast_thread() {
@@ -131,7 +113,7 @@ fn broadcast_thread() {
   }
 }
 
-fn dac_thread(buffer: Arc<RwLock<PointBuffer>>) {
+/*fn dac_thread(buffer: Arc<RwLock<PointBuffer>>) {
   //tcp.reuse_address(true).unwrap(); // TODO
 
   //socket.set_broadcast(true).unwrap(); // TODO
@@ -266,5 +248,5 @@ fn dac_thread(buffer: Arc<RwLock<PointBuffer>>) {
     //println!("Sending multicast...");
     //socket.send_to(&broadcast.serialize(), multicast_socket);
   }
-}
+}*/
 

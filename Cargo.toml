@@ -12,6 +12,7 @@
   name = "etherdream-emulator"
 
 [dependencies]
+  byteorder = "0.5.*"
   glium = "0.14.*"
   ilda = "0.0.2"
   log = "0.3.*"
