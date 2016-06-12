@@ -16,7 +16,6 @@ use std::io::Read;
 use std::io::Write;
 use std::net::TcpListener;
 use std::net::TcpStream;
-use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::RwLock;
 
@@ -52,8 +51,8 @@ impl Dac {
   }
 
   pub fn listen(&self) {
+    // TODO: Set timeout on listener
     let listener = TcpListener::bind("0.0.0.0:7765").unwrap();
-    listener.set_ttl(500); // FIXME: I'm assuming millisec here.
 
     match listener.accept() {
       Err(e) => {
@@ -76,7 +75,7 @@ impl Dac {
             Command::Prepare => {
               self.write(&mut stream, COMMAND_PREPARE);
             },
-            Command::Data { num_points, points } => {
+            Command::Data { points, .. } => {
               self.enqueue_points(points);
               self.write(&mut stream, COMMAND_DATA);
             },
@@ -113,12 +112,12 @@ impl Dac {
       Err(_) => {
         false
       },
-      Ok(mut queue) => { 
+      Ok(mut queue) => {
         if queue.len() + points.len() > self.queue_limit {
           //println!("Queue max reached.");
           false
         } else {
-          queue.extend(points); 
+          queue.extend(points);
           match self.status.try_write() {
             Err(_) => {},
             Ok(mut status) => {
@@ -132,7 +131,6 @@ impl Dac {
   }
 
   fn read_command(&self, stream: &mut TcpStream) -> Command {
-    let mut command_buf : Vec<u8> = Vec::new();
     let mut buf = [0u8; 2048]; // TODO: Better buffer size.
 
     match stream.read(&mut buf) {
@@ -147,7 +145,7 @@ impl Dac {
         match buf[0] {
           COMMAND_DATA => {
             //println!("Read data");
-            let (num_points, point_bytes) = 
+            let (num_points, point_bytes) =
                 self.read_point_data(stream, buf, size);
 
             let points = self.parse_points(num_points, point_bytes);
@@ -175,7 +173,7 @@ impl Dac {
   /// Continue streaming point data payload.
   /// Returns the number of points as well as the point bytes.
   fn read_point_data(&self, stream: &mut TcpStream, buf: [u8; 2048],
-                     read_size: usize) 
+                     read_size: usize)
       -> (u16, Vec<u8>) {
 
     let num_points = read_u16(&buf[1 .. 3]);
@@ -207,14 +205,12 @@ impl Dac {
   }
 
   /// Parse raw point bytes into structured Points.
-  fn parse_points(&self, num_points: u16, point_data: Vec<u8>) 
+  fn parse_points(&self, num_points: u16, point_data: Vec<u8>)
       -> Vec<Point> {
     let mut reader = Cursor::new(point_data);
     let mut points : Vec<Point> = Vec::new();
 
-    for i in 0 .. num_points {
-      let j = i as usize * POINT_SIZE;
-
+    for _i in 0 .. num_points {
       points.push(Point {
         control: reader.read_u16::<LittleEndian>().unwrap(),
         x:       reader.read_i16::<LittleEndian>().unwrap(),
@@ -242,16 +238,12 @@ impl Dac {
 
     match write_result {
       Err(_) => { println!("Write error."); },
-      Ok(size) => {},
+      Ok(_size) => {},
     };
   }
 }
 
-// TODO/FIXME: Does Rust's casting use 2's complement? Do some maths.
-fn read_i16(bytes: &[u8]) -> i16 {
-  (((bytes[0] as u16) << 8) | (bytes[1] as u16)) as i16
-}
-
+// TODO: Use the byteorder library instead.
 fn read_u16(bytes: &[u8]) -> u16 {
   ((bytes[0] as u16) << 8) | (bytes[1] as u16)
 }

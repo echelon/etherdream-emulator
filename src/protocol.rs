@@ -3,10 +3,8 @@
 // website, and the copyright belongs to Jacob Potter.
 // See http://ether-dream.com/protocol.html
 
-extern crate rand;
-
-use byteorder::{LittleEndian, WriteBytesExt};
-use rand::Rng;
+use byteorder::LittleEndian;
+use byteorder::WriteBytesExt;
 
 pub const COMMAND_BEGIN : u8   = 0x62;
 pub const COMMAND_DATA : u8    = 0x64;
@@ -24,7 +22,7 @@ pub struct DacStatus {
    *
    *  - 0: Ready.
    *  - 1: Warmup. In the case where the DAC is also used for thermal
-   *       control of laser apparatus, this is the state that is 
+   *       control of laser apparatus, this is the state that is
    *       entered after power-up.
    *  - 2: Cooldown. Lasers are off but thermal control is still active
    *  - 3: Emergency stop. An emergency stop has been triggered, either
@@ -44,7 +42,7 @@ pub struct DacStatus {
    * The DAC has one playback system, which buffers data and sends it
    * to the analog output hardware at its current point rate. At any
    * given time, the playback system is connected to a source. Usually,
-   * the source is the network streamer, which uses the protocol 
+   * the source is the network streamer, which uses the protocol
    * described in this document; however, other sources exist, such as
    * a built-in abstract generator and file playback from SD card. The
    * playback system is in one of the following states:
@@ -237,24 +235,6 @@ pub struct Point {
   pub u2: u16,
 }
 
-impl Point {
-  // TODO: Just for testing
-  pub fn random() -> Point {
-    let mut rng = rand::thread_rng();
-    Point {
-      control: 0,
-      x: rng.gen(),
-      y: rng.gen(),
-      i: rng.gen(),
-      r: rng.gen(),
-      g: rng.gen(),
-      b: rng.gen(),
-      u1: rng.gen(),
-      u2: rng.gen(),
-    }
-  }
-}
-
 // TODO BETTER NAME
 pub enum ResponseState {
   Ack,
@@ -281,7 +261,7 @@ pub struct DacResponse {
   /**
    * In the case of ACK/NAK responses, "command" echoes back the command
    * to which the response is sent. (Commands are always sent in order,
-   * so this field exists for sanity-checking on the host side.) 
+   * so this field exists for sanity-checking on the host side.)
    */
   command: u8,
 
@@ -290,20 +270,12 @@ pub struct DacResponse {
 }
 
 impl DacResponse {
-  pub fn new(response: ResponseState, command: u8, dac_status: DacStatus) 
+  pub fn new(response: ResponseState, command: u8, dac_status: DacStatus)
       -> DacResponse {
     DacResponse {
       response: response,
       command: command,
       dac_status: dac_status,
-    }
-  }
-
-  pub fn info() -> DacResponse {
-    DacResponse {
-      response: ResponseState::Ack, //0x61,
-      command: 0x3f, // '?'
-      dac_status: DacStatus::empty(),
     }
   }
 
@@ -324,7 +296,7 @@ impl DacResponse {
 
 // 16 bytes + dac status -> 36 bytes
 pub struct Broadcast {
-  pub mac_address : Vec<u8>, // TODO: fixed size 
+  pub mac_address : Vec<u8>, // TODO: fixed size
   //uint8_t mac_address[6];
   pub hw_revision : u16,
   pub sw_revision : u16,
@@ -347,7 +319,7 @@ impl Broadcast {
 
   pub fn serialize(&self) -> Vec<u8> {
     let mut vec = Vec::new();
-    for i in 0..36 {
+    for _i in 0..36 {
       vec.push(0);
     }
     vec

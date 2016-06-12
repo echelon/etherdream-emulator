@@ -5,9 +5,15 @@ This is a visual emulator for the Etherdream laser projector DAC. It
 displays the points that are projected (as well as blanking) for easy
 development and debugging without actual laser hardware present.
 
+This is currently in a working state and can be used for active
+EtherDream / laser projection development.
+
 TODO
 ----
+- Full protocol support (all commands, better statefulness)
 - Further clean up and testing
+- Better error handling
+- Better logging
 - Comprehensive tests
 - Support Multiprojection (multiple DACs/projectors)
 - Draw on a 3D surface and calculate projection angles and deformations

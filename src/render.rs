@@ -1,7 +1,5 @@
 // Copyright (c) 2016 Brandon Thomas <bt@brand.io>, <echelon@gmail.com>
 
-extern crate rand;
-
 use dac::Dac;
 use glium_graphics::Glium2d;
 use glium_graphics::GliumWindow;
@@ -35,9 +33,6 @@ pub fn gl_window(dac: Arc<Dac>) {
 
       let mut target = window.draw();
       g2d.draw(&mut target, args.viewport(), |ctx, gfx| {
-
-        let point_transform = ctx.transform.scale(0.05, 0.05);
-        let mut rng = rand::thread_rng();
 
         clear([1.0; 4], gfx);
 

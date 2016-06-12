@@ -1,6 +1,6 @@
 [package]
   name = "etherdream-emulator"
-  version = "0.0.1"
+  version = "0.1.0"
   authors = [ "Brandon Thomas <bt@brand.io>", "Brandon Thomas <echelon@gmail.com>" ]
   description = "An EtherDream (laser DAC) emulator and visualization tool."
   keywords = [ "EtherDream", "laser", "projector", "ether", "dream" ]
@@ -20,4 +20,4 @@
   piston = "0.23.*"
   piston2d-glium_graphics = "0.26.0"
   piston2d-graphics = "0.16.0"
-  rand = "0.3.*"
+
