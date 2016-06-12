@@ -21,11 +21,12 @@ use glium_graphics::{
     Flip, Glium2d, GliumWindow, OpenGL, Texture, TextureSettings
 };
 
-//const WINDOW_WIDTH : u32 = 1280;
-//const WINDOW_HEIGHT : u32 = 1280;
+const INITIAL_WINDOW_WIDTH : u32 = 600;
+const INITIAL_WINDOW_HEIGHT : u32 = 600;
 
-const WINDOW_WIDTH : u32 = 600;
-const WINDOW_HEIGHT : u32 = 600;
+/// RGBA window background color.
+/// Not completely black so that laser blanking can be seen.
+const BG_COLOR : [f32; 4] = [0.1, 0.1, 0.1, 1.0];
 
 pub struct TimedPoint {
   pub point: Point,
@@ -77,18 +78,17 @@ impl PointBuffer {
 pub fn gl_window(dac: Arc<Dac>) {
   let opengl = OpenGL::V3_2;
   let ref mut window: GliumWindow =
-    WindowSettings::new("glium_graphics: image_test", [WINDOW_WIDTH, WINDOW_HEIGHT])
-    .exit_on_esc(true).opengl(opengl).build().unwrap();
-
+    WindowSettings::new("EtherDream Emulator", 
+                        [INITIAL_WINDOW_WIDTH, INITIAL_WINDOW_HEIGHT])
+      .exit_on_esc(true)
+      .opengl(opengl)
+      .build()
+      .unwrap();
 
   let mut g2d = Glium2d::new(opengl, window);
   while let Some(e) = window.next() {
     if let Some(args) = e.render_args() {
       use graphics::*;
-
-      /*let point_ring_buffer = Vec::new();
-      let ring_size : usize = 1000;
-      let ring_pos : usize = 0;*/
 
       let mut target = window.draw();
       g2d.draw(&mut target, args.viewport(), |ctx, gfx| {
@@ -98,35 +98,21 @@ pub fn gl_window(dac: Arc<Dac>) {
 
         clear([1.0; 4], gfx);
 
-        // Background
-        Rectangle::new([0.2, 0.2, 0.2, 1.0])
-          .draw([0.0, 0.0, WINDOW_WIDTH as f64, WINDOW_HEIGHT as f64],
+        // Draw background color
+        Rectangle::new(BG_COLOR)
+          .draw([0.0, 0.0, args.width as f64, args.height as f64],
                 &ctx.draw_state,
                 ctx.transform,
                 gfx);
 
-        let points = dac.drain_points();
-        //println!("points len: {}", points.len());
-
-        let mut i = 0;
-        for point in points {
-          i += 1;
-          // TODO: This is a lame hack to deal with queue consumption being too slow
-          if i % 50 != 0 {
-            //continue;
-          }
-
-          let x = map_x(point.x, WINDOW_WIDTH);
-          let y = map_y(point.y, WINDOW_HEIGHT);
-
-          //println!("{}, {}", point.x, point.y);
-          //println!("{}, {}", x, y);
-
+        for point in dac.drain_points() {
+          let x = map_x(point.x, args.width);
+          let y = map_y(point.y, args.height);
           let r = map_color(point.r);
-          let gr = map_color(point.g);
+          let g = map_color(point.g);
           let b = map_color(point.b);
 
-          Ellipse::new([r, gr, b, 1.0])
+          Ellipse::new([r, g, b, 1.0])
             .draw([
                   // Position
                   x,
@@ -137,49 +123,13 @@ pub fn gl_window(dac: Arc<Dac>) {
             ],
             &ctx.draw_state, ctx.transform, gfx);
         }
-        /*match (*buffer).read() {
-          Err(_) => {},
-          Ok(pb) => {
-            let points = pb.read();
-
-            for timed_point in points {
-              if !timed_point.can_draw() {
-                continue;
-              }
-
-              let x = map_x(timed_point.point.x, 1280);
-              let y = map_y(timed_point.point.y, 960);
-
-              println!("{}, {}", x, y);
-              println!("{}, {}", timed_point.point.x, timed_point.point.y);
-
-              let r = rng.gen_range(0.0, 1.0);
-              let gr = rng.gen_range(0.0, 1.0);
-              let b = rng.gen_range(0.0, 1.0);
-
-              Ellipse::new([r, gr, b, 1.0])
-                .draw([
-                      // Position
-                      x,
-                      y,
-                      // Size of shape.
-                      10.0,
-                      10.0,
-                ],
-                &c.draw_state, c.transform, g);
-
-            }
-          },
-        }*/
-
-        sleep(Duration::from_millis(50));
       });
 
       target.finish().unwrap();
     }
   }
 
-  println!("Terminating process.");
+  println!("Window closed. Terminating process.");
   process::exit(0);
 }
 
@@ -198,25 +148,8 @@ pub fn map_y(y: i16, height: u32) -> f64 {
   ty as f64 * scale
 }
 
+/// Convert color space from ILDA to float.
 pub fn map_color(c: u16) -> f32 {
   c as f32 / 65535.0
 }
-
-/*/// Transform x-coordinate.
-fn t_x(x : i16, img_width: u32) -> u32 {
-  // FIXME: This is abhorrent.
-  let ix = (x as i32).saturating_add(limit::MAX_X as i32);
-  let scale = (img_width as f64) / (limit::WIDTH as f64);
-  ((ix as f64 * scale) as i32).abs() as u32
-}
-
-/// Transform y-coordinate.
-fn t_y(y : i16, img_height: u32) -> u32 {
-  // FIXME: This is abhorrent.
-  // NB: Have to invert y since the vertical coordinate system transforms.
-  let iy = ((y * -1) as i32).saturating_add(limit::MAX_Y as i32);
-  let scale = (img_height as f64) / (limit::HEIGHT as f64);
-  ((iy as f64 * scale) as i32).abs() as u32
-}
-*/
 
