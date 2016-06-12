@@ -28,53 +28,6 @@ const INITIAL_WINDOW_HEIGHT : u32 = 600;
 /// Not completely black so that laser blanking can be seen.
 const BG_COLOR : [f32; 4] = [0.1, 0.1, 0.1, 1.0];
 
-pub struct TimedPoint {
-  pub point: Point,
-  pub instant: Instant,
-}
-
-impl TimedPoint {
-  pub fn new(point: Point) -> TimedPoint {
-    TimedPoint {
-      point: point,
-      instant: Instant::now(),
-    }
-  }
-
-  pub fn can_draw(&self) -> bool {
-    self.instant.elapsed() < Duration::from_millis(100)
-  }
-}
-
-pub struct PointBuffer {
-  buffer: Vec<TimedPoint>,
-  next: usize,
-  capacity: usize,
-}
-
-#[derive(Clone)]
-pub struct AtomicPointBuffer {
-  holder: Arc<RwLock<PointBuffer>>,
-}
-
-impl PointBuffer {
-  pub fn new() -> PointBuffer {
-    PointBuffer {
-      buffer: Vec::with_capacity(200),
-      next: 0,
-      capacity: 200,
-    }
-  }
-
-  pub fn add(&mut self, point: TimedPoint) {
-    self.buffer.insert(self.next, point);
-    self.next = (self.next + 1) % self.capacity; // FIXME: Capacity
-  }
-  pub fn read(&self) -> &Vec<TimedPoint> {
-    &self.buffer
-  }
-}
-
 pub fn gl_window(dac: Arc<Dac>) {
   let opengl = OpenGL::V3_2;
   let ref mut window: GliumWindow =

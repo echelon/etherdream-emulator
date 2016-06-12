@@ -1,20 +1,21 @@
 // Copyright (c) 2016 Brandon Thomas <bt@brand.io>, <echelon@gmail.com>
+// A OpenGL emulator/visualizer for the EtherDream laser projector DAC.
 // See http://ether-dream.com/protocol.html
 
-extern crate rand;
-extern crate net2;
 extern crate byteorder;
-
-extern crate ilda;
-extern crate graphics;                                                          
 extern crate glium;
 extern crate glium_graphics;
+extern crate graphics;                                                          
+extern crate ilda;
+extern crate net2;
 extern crate piston;
+extern crate rand;
 
+mod dac;
 mod protocol;
 mod render;
-mod dac;
 
+use dac::Dac;
 use net2::TcpBuilder;
 use net2::UdpBuilder;
 use protocol::DacResponse;
@@ -22,9 +23,6 @@ use protocol::DacStatus;
 use protocol::Point;
 use protocol::ResponseState;
 use rand::Rng;
-use render::PointBuffer;
-use render::TimedPoint;
-use dac::Dac;
 use render::gl_window;
 use std::io::Read;
 use std::io::Write;
@@ -46,7 +44,7 @@ const UDP_PORT : u16 = 7654;
 
 // 16 bytes + dac status -> 36 bytes
 pub struct Broadcast {
-  pub mac_address : Vec<u8>, // TODO: better type
+  pub mac_address : Vec<u8>, // TODO: fixed size 
   //uint8_t mac_address[6];
   pub hw_revision : u16,
   pub sw_revision : u16,
@@ -76,16 +74,9 @@ impl Broadcast {
   }
 }
 
-
-
 fn main() {
-  let mut buffer = Arc::new(RwLock::new(PointBuffer::new()));
-
   let dac = Arc::new(Dac::new());
   let dac2 = dac.clone();
-
-  let buffer2 = buffer.clone();
-  let buffer3 = buffer.clone();
 
   thread::spawn(|| broadcast_thread());
   thread::spawn(move || gl_window(dac2));
@@ -93,13 +84,13 @@ fn main() {
   dac.listen_loop();
 }
 
+/// Send a UDP broadcast announcing the EtherDream to the network.
 fn broadcast_thread() {
-  let udp = UdpBuilder::new_v4().unwrap(); // TODO
-  udp.reuse_address(true).unwrap(); // TODO
+  let udp = UdpBuilder::new_v4().unwrap();
+  udp.reuse_address(true).unwrap();
 
-  let mut socket = udp.bind("0.0.0.0:7654").unwrap(); // TODO
-
-  socket.set_broadcast(true).unwrap(); // TODO
+  let mut socket = udp.bind("0.0.0.0:7654").unwrap();
+  socket.set_broadcast(true).unwrap();
 
   let multicast_ip = Ipv4Addr::new(255, 255, 255, 255); 
   let multicast_socket = SocketAddr::V4(SocketAddrV4::new(multicast_ip, UDP_PORT));
@@ -108,145 +99,7 @@ fn broadcast_thread() {
 
   loop {
     sleep(Duration::from_secs(1));
-    //println!("Sending multicast...");
     socket.send_to(&broadcast.serialize(), multicast_socket);
   }
 }
-
-/*fn dac_thread(buffer: Arc<RwLock<PointBuffer>>) {
-  //tcp.reuse_address(true).unwrap(); // TODO
-
-  //socket.set_broadcast(true).unwrap(); // TODO
-  //let multicast_ip = Ipv4Addr::new(255, 255, 255, 255); 
-  //let multicast_socket = SocketAddr::V4(SocketAddrV4::new(multicast_ip, UDP_PORT));
-  //let mut stream = socket.to_tcp_stream().unwrap(); // TODO
-  //let broadcast = Broadcast::new();
-  //
-
-  /*let tcp = TcpBuilder::new_v4().unwrap(); // TODO
-  let mut socket = tcp.bind("0.0.0.0:7765").unwrap(); // TODO
-  let mut listener = socket.to_tcp_listener().unwrap(); // TODO */
-
-  /*loop {
-    sleep(Duration::from_millis(50)); 
-
-    match (*buffer).write() {
-      Err(_) => {},
-      Ok(mut pb) => {
-        println!("Adding point!");
-        pb.add(TimedPoint::new(Point::random()));
-      }
-    };
-  }*/
-
-  let dac = Dac::new();
-  dac.listen();
-
-  return;
-
-  let listener = TcpListener::bind("0.0.0.0:7765").unwrap();
-  listener.set_ttl(500); // FIXME: Assume millisec
-
-  loop {
-    sleep(Duration::from_secs(1));
-    println!("Dac thread.");
-    match listener.accept() {
-      Err(e) => {
-        println!("Error: {:?}", e);
-      },
-      Ok((mut stream, socket_addr)) => {
-        println!("Connected!");
-        //stream.set_ttl(500).unwrap(); // FIXME: Assume millisec
-
-        // FIXME: THIS IS ABSOLUTE GARBAGE. MAKE A STATE MACHINE.
-        loop {
-          let mut state = DacStatus::empty();
-          //let mut bytes = [0u8; 56]; // TODO: Better buffer
-          let mut bytes = [0u8; 5048 * 4]; // TODO: Better buffer
-
-          // ***** A *****
-          let mut write_result = stream.write(&DacResponse::info().serialize());
-          match write_result {
-            Ok(size) => { println!("Write A: {}", size); },
-            Err(_) => { println!("Write error A."); },
-          };
-
-          // ***** B *****
-          // TODO: DON'T IGNORE PREPARE COMMAND (p / 0x70)
-          let mut read_result = stream.read(&mut bytes);
-          match read_result {
-            Ok(size) => { println!("Read B: {}", size); },
-            Err(_) => { println!("Read error B."); },
-          };
-          write_result = stream.write(
-              &DacResponse::new(ResponseState::Ack, 0x70, state.clone()).serialize());
-          match write_result {
-            Ok(size) => { println!("Write B: {}", size); },
-            Err(_) => { println!("Write error B."); },
-          };
-
-          return;
-
-
-          // ***** C ***** "Data"
-            read_result = stream.read(&mut bytes);
-            match read_result {
-              Ok(size) => { println!("Read C: {}", size); },
-              Err(_) => { println!("Read error C."); },
-            };
-            write_result = stream.write(
-                &DacResponse::new(ResponseState::Ack, 0x64, state.clone()).serialize());
-            match write_result {
-              Ok(size) => { println!("Write C: {}", size); },
-              Err(_) => { println!("Write error C."); },
-            };
-
-          // ***** D *****: "Begin" 
-            read_result = stream.read(&mut bytes);
-            match read_result {
-              Ok(size) => { println!("Read D: {}", size); },
-              Err(_) => { println!("Read error D."); },
-            };
-            write_result = stream.write(
-                &DacResponse::new(ResponseState::Ack, 0x62, state.clone()).serialize());
-            match write_result {
-              Ok(size) => { println!("Write D: {}", size); },
-              Err(_) => { println!("Write error D."); },
-            };
-
-
-          // ***** C ***** "More data"
-          loop {
-            read_result = stream.read(&mut bytes);
-            match read_result {
-              Ok(size) => { 
-                println!("Read C: {}", size); 
-                println!("First byte: {}", bytes[0]);
-
-                match (*buffer).write() {
-                  Err(_) => {},
-                  Ok(mut pb) => {
-                    println!("Adding point!");
-                    pb.add(TimedPoint::new(Point::random()));
-                  }
-                }
-
-              },
-              Err(_) => { println!("Read error C."); },
-            };
-            write_result = stream.write(
-                &DacResponse::new(ResponseState::Ack, 0x64, state.clone()).serialize());
-            match write_result {
-              Ok(size) => { println!("Write C: {}", size); },
-              Err(_) => { println!("Write error C."); },
-            };
-          }
-        }
-
-      },
-    }
-    //println!("Sending multicast...");
-    //socket.send_to(&broadcast.serialize(), multicast_socket);
-  }
-}*/
 

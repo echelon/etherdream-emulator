@@ -1,6 +1,7 @@
 // Copyright (c) 2016 Brandon Thomas <bt@brand.io>, <echelon@gmail.com>
 
-use byteorder::{LittleEndian, ReadBytesExt};
+use byteorder::LittleEndian;
+use byteorder::ReadBytesExt;
 use protocol::COMMAND_BEGIN;
 use protocol::COMMAND_DATA;
 use protocol::COMMAND_PREPARE;
@@ -51,7 +52,6 @@ impl Dac {
   }
 
   pub fn listen(&self) {
-    // NB: Mutable only to change `status`
     let listener = TcpListener::bind("0.0.0.0:7765").unwrap();
     listener.set_ttl(500); // FIXME: I'm assuming millisec here.
 
@@ -109,7 +109,6 @@ impl Dac {
 
   /// Enqueue points. If the queue is full, reject and return false.
   fn enqueue_points(&self, points: Vec<Point>) -> bool {
-    // NB: Mutable only to change `status`
     match self.points.lock() {
       Err(_) => {
         false
