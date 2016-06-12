@@ -1,5 +1,6 @@
 // Copyright (c) 2016 Brandon Thomas <bt@brand.io>, <echelon@gmail.com>
 
+use byteorder::{LittleEndian, ReadBytesExt};
 use protocol::COMMAND_BEGIN;
 use protocol::COMMAND_DATA;
 use protocol::COMMAND_PREPARE;
@@ -9,6 +10,7 @@ use protocol::DacStatus;
 use protocol::Point;
 use protocol::ResponseState;
 use std::collections::VecDeque;
+use std::io::Cursor;
 use std::io::Read;
 use std::io::Write;
 use std::net::TcpListener;
@@ -208,20 +210,22 @@ impl Dac {
   /// Parse raw point bytes into structured Points.
   fn parse_points(&self, num_points: u16, point_data: Vec<u8>) 
       -> Vec<Point> {
+    let mut reader = Cursor::new(point_data);
     let mut points : Vec<Point> = Vec::new();
 
     for i in 0 .. num_points {
       let j = i as usize * POINT_SIZE;
+
       points.push(Point {
-        control: read_u16(&point_data[j .. j+2]),
-        x:       read_i16(&point_data[j+2 .. j+4]),
-        y:       read_i16(&point_data[j+4 .. j+6]),
-        i:       read_u16(&point_data[j+6 .. j+8]),
-        r:       read_u16(&point_data[j+8 .. j+10]),
-        g:       read_u16(&point_data[j+10 .. j+12]),
-        b:       read_u16(&point_data[j+12 .. j+14]),
-        u1:      read_u16(&point_data[j+14 .. j+16]),
-        u2:      read_u16(&point_data[j+16 .. j+18]),
+        control: reader.read_u16::<LittleEndian>().unwrap(),
+        x:       reader.read_i16::<LittleEndian>().unwrap(),
+        y:       reader.read_i16::<LittleEndian>().unwrap(),
+        i:       reader.read_u16::<LittleEndian>().unwrap(),
+        r:       reader.read_u16::<LittleEndian>().unwrap(),
+        g:       reader.read_u16::<LittleEndian>().unwrap(),
+        b:       reader.read_u16::<LittleEndian>().unwrap(),
+        u1:      reader.read_u16::<LittleEndian>().unwrap(),
+        u2:      reader.read_u16::<LittleEndian>().unwrap(),
       })
     }
 
@@ -234,14 +238,12 @@ impl Dac {
       Ok(s) => { s.clone() },
     };
 
-    //println!("Fullness: {}", status.buffer_fullness);
-
     let write_result = stream.write(
       &DacResponse::new(ResponseState::Ack, command, status).serialize());
 
     match write_result {
-      Ok(size) => { /*println!("Write: {}", size);*/ },
       Err(_) => { println!("Write error."); },
+      Ok(size) => {},
     };
   }
 }

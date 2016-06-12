@@ -99,7 +99,7 @@ pub fn gl_window(dac: Arc<Dac>) {
         clear([1.0; 4], gfx);
 
         // Background
-        Rectangle::new([0.0, 0.0, 0.0, 1.0])
+        Rectangle::new([0.2, 0.2, 0.2, 1.0])
           .draw([0.0, 0.0, WINDOW_WIDTH as f64, WINDOW_HEIGHT as f64],
                 &ctx.draw_state,
                 ctx.transform,
