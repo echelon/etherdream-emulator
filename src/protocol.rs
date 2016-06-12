@@ -322,3 +322,35 @@ impl DacResponse {
   }
 }
 
+// 16 bytes + dac status -> 36 bytes
+pub struct Broadcast {
+  pub mac_address : Vec<u8>, // TODO: fixed size 
+  //uint8_t mac_address[6];
+  pub hw_revision : u16,
+  pub sw_revision : u16,
+  pub buffer_capacity : u16,
+  pub max_point_rate : u32,
+  pub status : DacStatus,
+}
+
+impl Broadcast {
+  pub fn new() -> Broadcast {
+    Broadcast {
+      mac_address: Vec::new(),
+      hw_revision: 0u16,
+      sw_revision: 0u16,
+      buffer_capacity: 0u16,
+      max_point_rate: 0u32,
+      status: DacStatus::empty(),
+    }
+  }
+
+  pub fn serialize(&self) -> Vec<u8> {
+    let mut vec = Vec::new();
+    for i in 0..36 {
+      vec.push(0);
+    }
+    vec
+  }
+}
+

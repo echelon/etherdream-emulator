@@ -3,9 +3,8 @@
 // See http://ether-dream.com/protocol.html
 
 extern crate byteorder;
-extern crate glium;
 extern crate glium_graphics;
-extern crate graphics;                                                          
+extern crate graphics;
 extern crate ilda;
 extern crate net2;
 extern crate piston;
@@ -16,63 +15,20 @@ mod protocol;
 mod render;
 
 use dac::Dac;
-use net2::TcpBuilder;
 use net2::UdpBuilder;
-use protocol::DacResponse;
+use protocol::Broadcast;
 use protocol::DacStatus;
-use protocol::Point;
-use protocol::ResponseState;
-use rand::Rng;
 use render::gl_window;
-use std::io::Read;
-use std::io::Write;
 use std::net::Ipv4Addr;
 use std::net::SocketAddr;
 use std::net::SocketAddrV4;
-use std::net::TcpListener;
-use std::net::UdpSocket;
 use std::sync::Arc;
-use std::sync::Mutex;
-use std::sync::RwLock;
 use std::thread::sleep;
 use std::thread;
 use std::time::Duration;
-use std::time::Instant;
 
 const TCP_PORT : u16 = 7765;
 const UDP_PORT : u16 = 7654;
-
-// 16 bytes + dac status -> 36 bytes
-pub struct Broadcast {
-  pub mac_address : Vec<u8>, // TODO: fixed size 
-  //uint8_t mac_address[6];
-  pub hw_revision : u16,
-  pub sw_revision : u16,
-  pub buffer_capacity : u16,
-  pub max_point_rate : u32,
-  pub status : DacStatus,
-}
-
-impl Broadcast {
-  pub fn new() -> Broadcast {
-    Broadcast {
-      mac_address: Vec::new(),
-      hw_revision: 0u16,
-      sw_revision: 0u16,
-      buffer_capacity: 0u16,
-      max_point_rate: 0u32,
-      status: DacStatus::empty(),
-    }
-  }
-
-  pub fn serialize(&self) -> Vec<u8> {
-    let mut vec = Vec::new();
-    for i in 0..36 {
-      vec.push(0);
-    }
-    vec
-  }
-}
 
 fn main() {
   let dac = Arc::new(Dac::new());

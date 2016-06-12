@@ -2,27 +2,19 @@
 
 extern crate rand;
 
-use std::process;
 use dac::Dac;
-use glium::DisplayBuild;
-use graphics::draw_state::Blend;
+use glium_graphics::Glium2d;
+use glium_graphics::GliumWindow;
+use glium_graphics::OpenGL;
+use graphics::*;
+use ilda::limit;
 use piston::input::*;
 use piston::window::WindowSettings;
-use protocol::Point;
-use rand::Rng;
+use std::process;
 use std::sync::Arc;
-use std::sync::Mutex;
-use std::sync::RwLock;
-use std::thread::sleep;
-use std::time::Duration;
-use std::time::Instant;
-use ilda::limit;
-use glium_graphics::{
-    Flip, Glium2d, GliumWindow, OpenGL, Texture, TextureSettings
-};
 
-const INITIAL_WINDOW_WIDTH : u32 = 600;
-const INITIAL_WINDOW_HEIGHT : u32 = 600;
+/// Initial window dimensions.
+const INITIAL_WINDOW_DIMENSIONS : [u32; 2] = [600, 600];
 
 /// RGBA window background color.
 /// Not completely black so that laser blanking can be seen.
@@ -31,17 +23,15 @@ const BG_COLOR : [f32; 4] = [0.1, 0.1, 0.1, 1.0];
 pub fn gl_window(dac: Arc<Dac>) {
   let opengl = OpenGL::V3_2;
   let ref mut window: GliumWindow =
-    WindowSettings::new("EtherDream Emulator", 
-                        [INITIAL_WINDOW_WIDTH, INITIAL_WINDOW_HEIGHT])
-      .exit_on_esc(true)
-      .opengl(opengl)
-      .build()
-      .unwrap();
+      WindowSettings::new("EtherDream Emulator", INITIAL_WINDOW_DIMENSIONS)
+        .exit_on_esc(true)
+        .opengl(opengl)
+        .build()
+        .unwrap();
 
   let mut g2d = Glium2d::new(opengl, window);
   while let Some(e) = window.next() {
     if let Some(args) = e.render_args() {
-      use graphics::*;
 
       let mut target = window.draw();
       g2d.draw(&mut target, args.viewport(), |ctx, gfx| {
