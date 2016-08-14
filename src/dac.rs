@@ -2,6 +2,8 @@
 
 use byteorder::LittleEndian;
 use byteorder::ReadBytesExt;
+use error::ClientError;
+use RuntimeOpts;
 use protocol::COMMAND_BEGIN;
 use protocol::COMMAND_DATA;
 use protocol::COMMAND_PREPARE;
@@ -25,6 +27,9 @@ const POINT_SIZE : usize = 18;
 type PointQueue = VecDeque<Point>;
 
 pub struct Dac {
+  /// Runtime arguments supplied to the program.
+  opts: RuntimeOpts,
+
   // TODO: Refactor so locking not required. Only a single thread
   // needs this.
   /// Runtime state of the virtual dac.
@@ -38,8 +43,9 @@ pub struct Dac {
 }
 
 impl Dac {
-  pub fn new() -> Dac {
+  pub fn new(opts: &RuntimeOpts) -> Dac {
     Dac {
+      opts: opts.clone(),
       status: RwLock::new(DacStatus::empty()),
       points: Mutex::new(PointQueue::new()),
       queue_limit: 60_000,
@@ -59,30 +65,38 @@ impl Dac {
         println!("Error: {:?}", e);
       },
       Ok((mut stream, _socket_addr)) => {
-        println!("Connected!");
+        self.log("Connected!");
 
         // Write info
-        self.write(&mut stream, 0x3f);
+        self.write(&mut stream, &Command::Ping);
 
         loop {
           // Read-write loop
           let command = self.read_command(&mut stream);
 
+          self.log(&format!("Read command: {}", command));
+
           match command {
             Command::Begin { .. } => {
-              self.write(&mut stream, COMMAND_BEGIN);
+              self.write(&mut stream, &command);
             },
             Command::Prepare => {
-              self.write(&mut stream, COMMAND_PREPARE);
+              self.write(&mut stream, &command);
             },
-            Command::Data { points, .. } => {
-              self.enqueue_points(points);
-              self.write(&mut stream, COMMAND_DATA);
+            Command::Data { .. } => {
+              self.write(&mut stream, &command);
             },
             _ => {
-              println!("Unhandled command.");
+              println!("Cannot send ack for unknown/unhandled command.");
               return;
             },
+          }
+
+          match command {
+            Command::Data { points, .. } => {
+              self.enqueue_points(points);
+            },
+            _ => {},
           }
         }
       },
@@ -135,16 +149,13 @@ impl Dac {
 
     match stream.read(&mut buf) {
       Err(_) => {
-        println!("Read error.");
+        self.log("Read error.");
         Command::Unknown{ command: 0u8 } // TODO: Return error instead
       },
       Ok(size) => {
-        //println!("Read bytes: {}", size);
-
         // TODO: Implement all commands
         match buf[0] {
           COMMAND_DATA => {
-            //println!("Read data");
             let (num_points, point_bytes) =
                 self.read_point_data(stream, buf, size);
 
@@ -153,15 +164,17 @@ impl Dac {
             Command::Data { num_points: num_points, points: points }
           },
           COMMAND_PREPARE => {
-            println!("Read prepare");
+            self.log("Read prepare");
             Command::Prepare
           },
           COMMAND_BEGIN => {
-            println!("Read begin");
-            Command::Begin { low_water_mark: 0, point_rate: 0 }
+            match parse_begin(&buf) {
+              Ok(b) => b,
+              Err(e) => Command::Unknown { command: buf[0] },
+            }
           },
           _ => {
-            println!("Read unknown");
+            self.log("Read unknown");
             Command::Unknown{ command: buf[0] }
           },
         }
@@ -173,10 +186,13 @@ impl Dac {
   /// Continue streaming point data payload.
   /// Returns the number of points as well as the point bytes.
   fn read_point_data(&self, stream: &mut TcpStream, buf: [u8; 2048],
-                     read_size: usize)
-      -> (u16, Vec<u8>) {
+                     read_size: usize) -> (u16, Vec<u8>) {
+    self.log("Reading data");
 
     let num_points = read_u16(&buf[1 .. 3]);
+
+    self.log(&format!("Reading {} points.", num_points));
+
     let points_size = POINT_SIZE * num_points as usize;
     let total_size = points_size + 3usize; // 3 command header bytes
 
@@ -227,24 +243,53 @@ impl Dac {
     points
   }
 
-  fn write(&self, stream: &mut TcpStream, command: u8) {
+  /// Write ACK back to client.
+  fn write(&self, stream: &mut TcpStream, command: &Command) {
     let status = match self.status.read() {
       Err(_) => { DacStatus::empty() },
       Ok(s) => { s.clone() },
     };
 
     let write_result = stream.write(
-      &DacResponse::new(ResponseState::Ack, command, status).serialize());
+      &DacResponse::new(ResponseState::Ack, command.value(), status).serialize());
 
     match write_result {
-      Err(_) => { println!("Write error."); },
-      Ok(_size) => {},
+      Err(_) => {
+        println!("Write error.");
+      },
+      Ok(size) => {
+        self.log(&format!("Wrote {} ACK, {} bytes", command.name(), size));
+      },
     };
+  }
+
+  fn log(&self, message: &str) {
+    if self.opts.debug_protocol {
+      println!("{}", message);
+    }
   }
 }
 
 // TODO: Use the byteorder library instead.
 fn read_u16(bytes: &[u8]) -> u16 {
   ((bytes[0] as u16) << 8) | (bytes[1] as u16)
+}
+
+/// Parse a 'begin' command.
+pub fn parse_begin(bytes: &[u8]) -> Result<Command, ClientError> {
+  let mut reader = Cursor::new(bytes);
+  let b = try!(reader.read_u8()); // FIXME
+
+  if b != COMMAND_BEGIN {
+    return Err(ClientError::ParseError);
+  }
+
+  let lwm = try!(reader.read_u16::<LittleEndian>()); // FIXME
+  let pr = try!(reader.read_u32::<LittleEndian>()); // FIXME
+
+  Ok(Command::Begin {
+    low_water_mark: lwm,
+    point_rate: pr,
+  })
 }
 

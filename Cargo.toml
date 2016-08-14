@@ -1,6 +1,6 @@
 [package]
   name = "etherdream-emulator"
-  version = "0.1.0"
+  version = "0.1.1"
   authors = [ "Brandon Thomas <bt@brand.io>", "Brandon Thomas <echelon@gmail.com>" ]
   description = "An EtherDream (laser DAC) emulator and visualization tool."
   keywords = [ "EtherDream", "laser", "projector", "ether", "dream" ]
@@ -13,6 +13,7 @@
 
 [dependencies]
   byteorder = "0.5.*"
+  clap = "2.10.1"
   glium = "0.14.*"
   ilda = "0.0.2"
   log = "0.3.*"
