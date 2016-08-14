@@ -4,7 +4,10 @@
 // See http://ether-dream.com/protocol.html
 
 use byteorder::LittleEndian;
+use byteorder::ReadBytesExt;
 use byteorder::WriteBytesExt;
+use std::io::Cursor;
+use std::io::Read;
 
 pub const COMMAND_BEGIN : u8   = 0x62;
 pub const COMMAND_DATA : u8    = 0x64;
@@ -318,11 +321,14 @@ impl Broadcast {
   }
 
   pub fn serialize(&self) -> Vec<u8> {
-    let mut vec = Vec::new();
-    for _i in 0..36 {
-      vec.push(0);
-    }
-    vec
+    let mut v = Vec::new();
+    v.extend(&self.mac_address);
+    v.write_u16::<LittleEndian>(self.hw_revision).unwrap();
+    v.write_u16::<LittleEndian>(self.sw_revision).unwrap();
+    v.write_u16::<LittleEndian>(self.buffer_capacity).unwrap();
+    v.write_u32::<LittleEndian>(self.max_point_rate).unwrap();
+    v.extend(self.status.serialize());
+    v
   }
 }
 

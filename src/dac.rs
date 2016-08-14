@@ -2,6 +2,7 @@
 
 use byteorder::LittleEndian;
 use byteorder::ReadBytesExt;
+use error::ClientError;
 use protocol::COMMAND_BEGIN;
 use protocol::COMMAND_DATA;
 use protocol::COMMAND_PREPARE;
@@ -246,5 +247,25 @@ impl Dac {
 // TODO: Use the byteorder library instead.
 fn read_u16(bytes: &[u8]) -> u16 {
   ((bytes[0] as u16) << 8) | (bytes[1] as u16)
+}
+
+
+/// Parse a 'begin' command.
+pub fn parse_begin(bytes: &[u8]) -> Result<Command, ClientError> {
+  let mut reader = Cursor::new(bytes);
+  let b = try!(reader.read_u8()); // FIXME
+
+  if b != COMMAND_BEGIN {
+    //Err(
+  }
+
+
+  let lwm = try!(reader.read_u16::<LittleEndian>()); // FIXME
+  let pr = try!(reader.read_u32::<LittleEndian>()); // FIXME
+
+  Ok(Command::Begin {
+    low_water_mark: lwm,
+    point_rate: pr,
+  })
 }
 

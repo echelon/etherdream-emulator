@@ -10,12 +10,14 @@ extern crate net2;
 extern crate piston;
 
 mod dac;
+mod error;
 mod protocol;
 mod render;
 
 use dac::Dac;
 use net2::UdpBuilder;
 use protocol::Broadcast;
+use protocol::DacStatus;
 use render::gl_window;
 use std::net::Ipv4Addr;
 use std::net::SocketAddr;
@@ -49,7 +51,25 @@ fn broadcast_thread() {
   let multicast_ip = Ipv4Addr::new(255, 255, 255, 255);
   let multicast_socket = SocketAddr::V4(SocketAddrV4::new(multicast_ip, UDP_PORT));
 
-  let broadcast = Broadcast::new();
+  let broadcast = Broadcast {
+      mac_address: vec![1, 2, 3, 4, 5, 255],
+      hw_revision: 9000,
+      sw_revision: 8000,
+      buffer_capacity: 1000,
+      max_point_rate: 1234567890,
+      status: DacStatus {
+        protocol: 1,
+        light_engine_state: 2,
+        playback_state: 3,
+        source: 4,
+        light_engine_flags: 5,
+        playback_flags: 6,
+        source_flags: 7,
+        buffer_fullness: 8,
+        point_rate: 9,
+        point_count: 10,
+      },
+  };
 
   loop {
     sleep(Duration::from_secs(1));
