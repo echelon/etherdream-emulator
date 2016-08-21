@@ -14,17 +14,22 @@ pub enum ClientError {
 
 impl fmt::Display for ClientError {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-    write!(f, "An error lol k")
+    let error_detail = match *self {
+      ClientError::ConnectionError => "ConnectionError",
+      ClientError::ParseError => "ParseError",
+    };
+    write!(f, "{}", error_detail)
   }
 }
 
 impl error::Error for ClientError {
   fn description(&self) -> &str {
-    /*match self {
-      ConnectionError => "There was a problem with the client connection.",
-      ParseError => "There was a problem parsing the client protocol.",
-    }*/
-    "foo"
+    match *self {
+      ClientError::ConnectionError =>
+          "There was a problem with the client connection.",
+      ClientError::ParseError =>
+          "There was a problem parsing the client protocol.",
+    }
   }
 }
 

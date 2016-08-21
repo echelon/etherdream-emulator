@@ -159,7 +159,13 @@ impl Dac {
           },
           COMMAND_BEGIN => {
             println!("Read begin");
-            Command::Begin { low_water_mark: 0, point_rate: 0 }
+            match parse_begin(&buf) {
+              Ok(b) => {
+                println!("Begin: {}", b);
+                b
+              },
+              Err(e) => Command::Unknown { command: buf[0] },
+            }
           },
           _ => {
             println!("Read unknown");
@@ -249,16 +255,14 @@ fn read_u16(bytes: &[u8]) -> u16 {
   ((bytes[0] as u16) << 8) | (bytes[1] as u16)
 }
 
-
 /// Parse a 'begin' command.
 pub fn parse_begin(bytes: &[u8]) -> Result<Command, ClientError> {
   let mut reader = Cursor::new(bytes);
   let b = try!(reader.read_u8()); // FIXME
 
   if b != COMMAND_BEGIN {
-    //Err(
+    return Err(ClientError::ParseError);
   }
-
 
   let lwm = try!(reader.read_u16::<LittleEndian>()); // FIXME
   let pr = try!(reader.read_u32::<LittleEndian>()); // FIXME

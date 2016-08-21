@@ -6,6 +6,7 @@
 use byteorder::LittleEndian;
 use byteorder::ReadBytesExt;
 use byteorder::WriteBytesExt;
+use std::fmt;
 use std::io::Cursor;
 use std::io::Read;
 
@@ -197,14 +198,41 @@ impl Command {
     match *self {
       Command::Begin { .. }=> 0x62,     // 'b'
       Command::ClearEStop => 0x63,      // 'c'
+      Command::Data { .. } => 0x64,     // 'd'
       Command::EmergencyStop=> 0x00,    // also recognizes 0xff
       Command::Ping => 0x3f,            // '?'
       Command::Prepare => 0x70,         // 'p'
       Command::QueueRateChange => 0x74, // 'q'
       Command::Stop => 0x73,            // 's'
-      Command::Data { .. } => 0x64,     // 'd'
       Command::Unknown { command } => command,
     }
+  }
+}
+
+impl fmt::Display for Command {
+  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    let display = match *self {
+      Command::Begin { low_water_mark, point_rate } =>
+          format!("Begin: low_water_mark {} point_rate {}",
+                  low_water_mark, point_rate),
+      Command::ClearEStop =>
+          "ClearEStop".to_string(),
+      Command::Data { num_points, .. } =>
+          format!("Data: num_points {}", num_points),
+      Command::EmergencyStop=>
+          "EmergencyStop".to_string(),
+      Command::Ping =>
+          "Ping".to_string(),
+      Command::Prepare =>
+          "Prepare".to_string(),
+      Command::QueueRateChange =>
+          "QueueRateChange".to_string(),
+      Command::Stop =>
+          "Stop".to_string(),
+      Command::Unknown { command } =>
+          format!("Unknown command: {}", command),
+    };
+    write!(f, "{}", display)
   }
 }
 
