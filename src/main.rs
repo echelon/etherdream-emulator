@@ -3,6 +3,7 @@
 // See http://ether-dream.com/protocol.html
 
 extern crate byteorder;
+extern crate clap;
 extern crate glium_graphics;
 extern crate graphics;
 extern crate ilda;
@@ -14,6 +15,8 @@ mod error;
 mod protocol;
 mod render;
 
+use clap::App;
+use clap::Arg;
 use dac::Dac;
 use net2::UdpBuilder;
 use protocol::Broadcast;
@@ -30,8 +33,44 @@ use std::time::Duration;
 const TCP_PORT : u16 = 7765;
 const UDP_PORT : u16 = 7654;
 
+/// Program runtime options
+#[derive(Clone,Debug)]
+pub struct RuntimeOpts {
+  /// Print debugging information to STDOUT,
+  /// eg. each message in the client/server protocol.
+  pub debug_protocol: bool,
+
+  /// Don't spawn a GUI.
+  pub headless: bool,
+}
+
+impl RuntimeOpts {
+  fn read() -> RuntimeOpts {
+    let matches = App::new("etherdream-emulator")
+        .arg(Arg::with_name("debug")
+             .long("debug")
+             .short("d")
+             .help("Turns debugging output on")
+             .takes_value(false)
+             .required(false))
+        .arg(Arg::with_name("headless")
+             .long("headless")
+             .help("Turns off the GUI")
+             .takes_value(false)
+             .required(false))
+        .get_matches();
+
+    RuntimeOpts {
+      debug_protocol: matches.is_present("debug"),
+      headless: matches.is_present("headless"),
+    }
+  }
+}
+
 fn main() {
-  let dac = Arc::new(Dac::new());
+  let args = RuntimeOpts::read();
+
+  let dac = Arc::new(Dac::new(&args));
   let dac2 = dac.clone();
 
   thread::spawn(|| broadcast_thread());

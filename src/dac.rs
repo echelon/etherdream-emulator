@@ -3,6 +3,7 @@
 use byteorder::LittleEndian;
 use byteorder::ReadBytesExt;
 use error::ClientError;
+use RuntimeOpts;
 use protocol::COMMAND_BEGIN;
 use protocol::COMMAND_DATA;
 use protocol::COMMAND_PREPARE;
@@ -26,6 +27,9 @@ const POINT_SIZE : usize = 18;
 type PointQueue = VecDeque<Point>;
 
 pub struct Dac {
+  /// Runtime arguments supplied to the program.
+  opts: RuntimeOpts,
+
   // TODO: Refactor so locking not required. Only a single thread
   // needs this.
   /// Runtime state of the virtual dac.
@@ -39,8 +43,9 @@ pub struct Dac {
 }
 
 impl Dac {
-  pub fn new() -> Dac {
+  pub fn new(opts: &RuntimeOpts) -> Dac {
     Dac {
+      opts: opts.clone(),
       status: RwLock::new(DacStatus::empty()),
       points: Mutex::new(PointQueue::new()),
       queue_limit: 60_000,
@@ -60,7 +65,7 @@ impl Dac {
         println!("Error: {:?}", e);
       },
       Ok((mut stream, _socket_addr)) => {
-        println!("Connected!");
+        self.log("Connected!");
 
         // Write info
         self.write(&mut stream, 0x3f);
@@ -68,6 +73,8 @@ impl Dac {
         loop {
           // Read-write loop
           let command = self.read_command(&mut stream);
+
+          self.log(&format!("Read command: {}", command));
 
           match command {
             Command::Begin { .. } => {
@@ -136,12 +143,10 @@ impl Dac {
 
     match stream.read(&mut buf) {
       Err(_) => {
-        println!("Read error.");
+        self.log("Read error.");
         Command::Unknown{ command: 0u8 } // TODO: Return error instead
       },
       Ok(size) => {
-        //println!("Read bytes: {}", size);
-
         // TODO: Implement all commands
         match buf[0] {
           COMMAND_DATA => {
@@ -154,21 +159,17 @@ impl Dac {
             Command::Data { num_points: num_points, points: points }
           },
           COMMAND_PREPARE => {
-            println!("Read prepare");
+            self.log("Read prepare");
             Command::Prepare
           },
           COMMAND_BEGIN => {
-            println!("Read begin");
             match parse_begin(&buf) {
-              Ok(b) => {
-                println!("Begin: {}", b);
-                b
-              },
+              Ok(b) => b,
               Err(e) => Command::Unknown { command: buf[0] },
             }
           },
           _ => {
-            println!("Read unknown");
+            self.log("Read unknown");
             Command::Unknown{ command: buf[0] }
           },
         }
@@ -247,6 +248,12 @@ impl Dac {
       Err(_) => { println!("Write error."); },
       Ok(_size) => {},
     };
+  }
+
+  fn log(&self, message: &str) {
+    if self.opts.debug_protocol {
+      println!("{}", message);
+    }
   }
 }
 
