@@ -68,7 +68,7 @@ impl Dac {
         self.log("Connected!");
 
         // Write info
-        self.write(&mut stream, 0x3f);
+        self.write(&mut stream, &Command::Ping);
 
         loop {
           // Read-write loop
@@ -78,19 +78,25 @@ impl Dac {
 
           match command {
             Command::Begin { .. } => {
-              self.write(&mut stream, COMMAND_BEGIN);
+              self.write(&mut stream, &command);
             },
             Command::Prepare => {
-              self.write(&mut stream, COMMAND_PREPARE);
+              self.write(&mut stream, &command);
             },
-            Command::Data { points, .. } => {
-              self.enqueue_points(points);
-              self.write(&mut stream, COMMAND_DATA);
+            Command::Data { .. } => {
+              self.write(&mut stream, &command);
             },
             _ => {
-              println!("Unhandled command.");
+              println!("Cannot send ack for unknown/unhandled command.");
               return;
             },
+          }
+
+          match command {
+            Command::Data { points, .. } => {
+              self.enqueue_points(points);
+            },
+            _ => {},
           }
         }
       },
@@ -150,7 +156,6 @@ impl Dac {
         // TODO: Implement all commands
         match buf[0] {
           COMMAND_DATA => {
-            //println!("Read data");
             let (num_points, point_bytes) =
                 self.read_point_data(stream, buf, size);
 
@@ -181,10 +186,13 @@ impl Dac {
   /// Continue streaming point data payload.
   /// Returns the number of points as well as the point bytes.
   fn read_point_data(&self, stream: &mut TcpStream, buf: [u8; 2048],
-                     read_size: usize)
-      -> (u16, Vec<u8>) {
+                     read_size: usize) -> (u16, Vec<u8>) {
+    self.log("Reading data");
 
     let num_points = read_u16(&buf[1 .. 3]);
+
+    self.log(&format!("Reading {} points.", num_points));
+
     let points_size = POINT_SIZE * num_points as usize;
     let total_size = points_size + 3usize; // 3 command header bytes
 
@@ -235,18 +243,23 @@ impl Dac {
     points
   }
 
-  fn write(&self, stream: &mut TcpStream, command: u8) {
+  /// Write ACK back to client.
+  fn write(&self, stream: &mut TcpStream, command: &Command) {
     let status = match self.status.read() {
       Err(_) => { DacStatus::empty() },
       Ok(s) => { s.clone() },
     };
 
     let write_result = stream.write(
-      &DacResponse::new(ResponseState::Ack, command, status).serialize());
+      &DacResponse::new(ResponseState::Ack, command.value(), status).serialize());
 
     match write_result {
-      Err(_) => { println!("Write error."); },
-      Ok(_size) => {},
+      Err(_) => {
+        println!("Write error.");
+      },
+      Ok(size) => {
+        self.log(&format!("Wrote {} ACK, {} bytes", command.name(), size));
+      },
     };
   }
 

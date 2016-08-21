@@ -207,6 +207,20 @@ impl Command {
       Command::Unknown { command } => command,
     }
   }
+
+  pub fn name(&self) -> &str {
+    match *self {
+      Command::Begin { .. }=> "Begin",
+      Command::ClearEStop => "ClearEStop",
+      Command::Data { .. } => "Data",
+      Command::EmergencyStop=> "EmergencyStop",
+      Command::Ping => "Ping",
+      Command::Prepare => "Prepare",
+      Command::QueueRateChange => "QueueRateChange",
+      Command::Stop => "Stop",
+      Command::Unknown { .. } => "Unknown Command",
+    }
+  }
 }
 
 impl fmt::Display for Command {
