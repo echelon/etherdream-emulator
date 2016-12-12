@@ -1,9 +1,10 @@
 // Copyright (c) 2016 Brandon Thomas <bt@brand.io>, <echelon@gmail.com>
 
+use RuntimeOpts;
 use byteorder::LittleEndian;
 use byteorder::ReadBytesExt;
 use error::ClientError;
-use RuntimeOpts;
+use pipeline::Pipeline;
 use protocol::COMMAND_BEGIN;
 use protocol::COMMAND_DATA;
 use protocol::COMMAND_PREPARE;
@@ -18,13 +19,21 @@ use std::io::Read;
 use std::io::Write;
 use std::net::TcpListener;
 use std::net::TcpStream;
+use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::RwLock;
+use std::time::Instant;
 
 /// Size of a single point in bytes.
 const POINT_SIZE : usize = 18;
 
 type PointQueue = VecDeque<Point>;
+
+/// Points sent from the Dac in a single DATA command payload.
+pub struct DacFrame {
+  pub num_points: u16,
+  pub point_data: Vec<u8>,
+}
 
 pub struct Dac {
   /// Runtime arguments supplied to the program.
@@ -40,15 +49,19 @@ pub struct Dac {
 
   /// Maximum size of the queue. (TODO: Notes on [non-]blocking.)
   queue_limit: usize,
+
+  /// Point pipeline
+  pipeline: Arc<Pipeline>,
 }
 
 impl Dac {
-  pub fn new(opts: &RuntimeOpts) -> Dac {
+  pub fn new(opts: &RuntimeOpts, pipeline: Arc<Pipeline>) -> Dac {
     Dac {
       opts: opts.clone(),
       status: RwLock::new(DacStatus::empty()),
       points: Mutex::new(PointQueue::new()),
       queue_limit: 60_000,
+      pipeline: pipeline,
     }
   }
 
@@ -72,6 +85,7 @@ impl Dac {
 
         loop {
           // Read-write loop
+          let start = Instant::now();
           let command = self.read_command(&mut stream);
 
           self.log(&format!("Read command: {}", command));
@@ -92,12 +106,58 @@ impl Dac {
             },
           }
 
-          match command {
+          // TODO:
+          //  - Dac thread consumes protocol
+          //  - Point thread converts into points
+          //  - Draw thread consumes points
+
+
+          /*match command {
             Command::Data { points, .. } => {
+              let _r = self.pipeline.enqueue(points); // TODO: Error handling!
               self.enqueue_points(points);
             },
             _ => {},
-          }
+          }*/
+          /*
+
+          Original Times:
+
+            Elapsed: Duration { secs: 0, nanos: 12799693 }
+            Elapsed: Duration { secs: 0, nanos: 5126380 }
+            Elapsed: Duration { secs: 0, nanos: 5191206 }
+            Elapsed: Duration { secs: 0, nanos: 5271904 }
+            Elapsed: Duration { secs: 0, nanos: 5350840 }
+            Elapsed: Duration { secs: 0, nanos: 5385611 }
+            Elapsed: Duration { secs: 0, nanos: 5414422 }
+            Elapsed: Duration { secs: 0, nanos: 5416543 }
+
+          Without parsing:
+
+            Elapsed: Duration { secs: 0, nanos: 12575459 }
+            Elapsed: Duration { secs: 0, nanos: 12713894 }
+            Elapsed: Duration { secs: 0, nanos: 12857095 }
+            Elapsed: Duration { secs: 0, nanos: 13090941 }
+            Elapsed: Duration { secs: 0, nanos: 13602049 }
+            Elapsed: Duration { secs: 0, nanos: 14051671 }
+
+          Without parsing x2:
+
+            Elapsed: Duration { secs: 0, nanos: 5055916 }
+            Elapsed: Duration { secs: 0, nanos: 5100141 }
+            Elapsed: Duration { secs: 0, nanos: 5122131 }
+            Elapsed: Duration { secs: 0, nanos: 6235534 }
+            Elapsed: Duration { secs: 0, nanos: 6257061 }
+            Elapsed: Duration { secs: 0, nanos: 6432697 }
+            Elapsed: Duration { secs: 0, nanos: 6534558 }
+            Elapsed: Duration { secs: 0, nanos: 6722200 }
+            Elapsed: Duration { secs: 0, nanos: 7244421 }
+            Elapsed: Duration { secs: 0, nanos: 7733401 }
+          */
+
+          let elapsed = start.elapsed();
+
+          println!("Elapsed: {:?}", elapsed);
         }
       },
     };
@@ -128,7 +188,7 @@ impl Dac {
       },
       Ok(mut queue) => {
         if queue.len() + points.len() > self.queue_limit {
-          //println!("Queue max reached.");
+          println!("Queue max reached.");
           false
         } else {
           queue.extend(points);
@@ -159,9 +219,17 @@ impl Dac {
             let (num_points, point_bytes) =
                 self.read_point_data(stream, buf, size);
 
-            let points = self.parse_points(num_points, point_bytes);
+            //let points = self.parse_points(num_points, point_bytes);
+            // FIXME: Error handling!
+            // TODO: Refactor.
+            let frame = DacFrame {
+              num_points: num_points,
+              point_data: point_bytes,
+            };
 
-            Command::Data { num_points: num_points, points: points }
+            let _r = self.pipeline.enqueue(frame);
+
+            Command::Data { num_points: num_points, points: Vec::new() }
           },
           COMMAND_PREPARE => {
             self.log("Read prepare");

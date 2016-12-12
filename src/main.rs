@@ -12,6 +12,7 @@ extern crate piston;
 
 mod dac;
 mod error;
+mod pipeline;
 mod protocol;
 mod render;
 
@@ -19,6 +20,7 @@ use clap::App;
 use clap::Arg;
 use dac::Dac;
 use net2::UdpBuilder;
+use pipeline::Pipeline;
 use protocol::Broadcast;
 use protocol::DacStatus;
 use render::gl_window;
@@ -70,11 +72,15 @@ impl RuntimeOpts {
 fn main() {
   let args = RuntimeOpts::read();
 
-  let dac = Arc::new(Dac::new(&args));
+  let pipeline = Arc::new(Pipeline::new());
+  let pipeline2 = pipeline.clone();
+
+  let dac = Arc::new(Dac::new(&args, pipeline.clone()));
   let dac2 = dac.clone();
 
   thread::spawn(|| broadcast_thread());
-  thread::spawn(move || gl_window(dac2));
+  thread::spawn(move || gl_window(dac2, pipeline2));
+  thread::spawn(move || pipeline.process());
 
   dac.listen_loop();
 }

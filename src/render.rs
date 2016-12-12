@@ -6,6 +6,7 @@ use glium_graphics::GliumWindow;
 use glium_graphics::OpenGL;
 use graphics::*;
 use ilda::limit;
+use pipeline::Pipeline;
 use piston::input::*;
 use piston::window::WindowSettings;
 use std::process;
@@ -18,7 +19,7 @@ const INITIAL_WINDOW_DIMENSIONS : [u32; 2] = [600, 600];
 /// Not completely black so that laser blanking can be seen.
 const BG_COLOR : [f32; 4] = [0.1, 0.1, 0.1, 1.0];
 
-pub fn gl_window(dac: Arc<Dac>) {
+pub fn gl_window(dac: Arc<Dac>, pipeline: Arc<Pipeline>) {
   let opengl = OpenGL::V3_2;
   let ref mut window: GliumWindow =
       WindowSettings::new("EtherDream Emulator", INITIAL_WINDOW_DIMENSIONS)
@@ -34,7 +35,7 @@ pub fn gl_window(dac: Arc<Dac>) {
       let mut target = window.draw();
       g2d.draw(&mut target, args.viewport(), |ctx, gfx| {
 
-        clear([1.0; 4], gfx);
+        //clear([1.0; 4], gfx);
 
         // Draw background color
         Rectangle::new(BG_COLOR)
@@ -43,7 +44,14 @@ pub fn gl_window(dac: Arc<Dac>) {
                 ctx.transform,
                 gfx);
 
-        for point in dac.drain_points() {
+        let result = pipeline.dequeue(1_000);
+        let points = match result {
+          Err(_) => Vec::new(), // TODO
+          Ok(points) => points,
+        };
+
+        //for point in dac.drain_points() {
+        for point in points {
           let x = map_x(point.x, args.width);
           let y = map_y(point.y, args.height);
           let r = map_color(point.r);
@@ -56,8 +64,8 @@ pub fn gl_window(dac: Arc<Dac>) {
                   x,
                   y,
                   // Size of shape.
-                  10.0,
-                  10.0,
+                  1.0,
+                  1.0,
             ],
             &ctx.draw_state, ctx.transform, gfx);
         }
