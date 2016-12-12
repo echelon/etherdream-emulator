@@ -4,11 +4,8 @@
 // See http://ether-dream.com/protocol.html
 
 use byteorder::LittleEndian;
-use byteorder::ReadBytesExt;
 use byteorder::WriteBytesExt;
 use std::fmt;
-use std::io::Cursor;
-use std::io::Read;
 
 pub const COMMAND_BEGIN : u8   = 0x62;
 pub const COMMAND_DATA : u8    = 0x64;
@@ -373,4 +370,3 @@ impl Broadcast {
     v
   }
 }
-

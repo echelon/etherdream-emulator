@@ -12,6 +12,7 @@ extern crate piston;
 
 mod dac;
 mod error;
+mod pipeline;
 mod protocol;
 mod render;
 
@@ -19,12 +20,13 @@ use clap::App;
 use clap::Arg;
 use dac::Dac;
 use net2::UdpBuilder;
+use pipeline::Pipeline;
 use protocol::Broadcast;
 use protocol::DacStatus;
 use render::gl_window;
+use std::net::IpAddr;
 use std::net::Ipv4Addr;
 use std::net::SocketAddr;
-use std::net::SocketAddrV4;
 use std::sync::Arc;
 use std::thread::sleep;
 use std::thread;
@@ -70,11 +72,14 @@ impl RuntimeOpts {
 fn main() {
   let args = RuntimeOpts::read();
 
-  let dac = Arc::new(Dac::new(&args));
-  let dac2 = dac.clone();
+  let pipeline = Arc::new(Pipeline::new());
+  let pipeline2 = pipeline.clone();
+
+  let dac = Dac::new(&args, pipeline.clone());
 
   thread::spawn(|| broadcast_thread());
-  thread::spawn(move || gl_window(dac2));
+  thread::spawn(move || gl_window(pipeline2));
+  thread::spawn(move || pipeline.process());
 
   dac.listen_loop();
 }
@@ -88,7 +93,7 @@ fn broadcast_thread() {
   socket.set_broadcast(true).unwrap();
 
   let multicast_ip = Ipv4Addr::new(255, 255, 255, 255);
-  let multicast_socket = SocketAddr::V4(SocketAddrV4::new(multicast_ip, UDP_PORT));
+  let multicast_socket = SocketAddr::new(IpAddr::V4(multicast_ip), UDP_PORT);
 
   let broadcast = Broadcast {
       mac_address: vec![1, 2, 3, 4, 5, 255],
