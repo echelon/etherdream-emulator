@@ -2,6 +2,8 @@
 
 use dac::DacFrame;
 use byteorder::LittleEndian;
+use std::thread;
+use std::time::Duration;
 use byteorder::ReadBytesExt;
 use protocol::Point;
 use std::collections::VecDeque;
@@ -57,15 +59,51 @@ impl Pipeline {
 
   /// Run by a separate thread from network and graphics.
   pub fn process(&self) -> ! {
+    //thread::sleep(Duration::from_secs(1000));
+
     loop {
+      let frame = {
+        let mut lock = self.input.lock().unwrap(); // Fatal error.
+        lock.pop_front()
+      };
+
+      let frame = match frame {
+        Some(f) => f,
+        None => {
+          thread::sleep(Duration::from_millis(100));
+          continue;
+        },
+      };
+
+      println!("Process...");
+
+      let points = parse_points(frame);
+
+      let mut lock = self.output.lock().unwrap(); // Fatal error.
+
+      for point in points {
+        (*lock).push_back(point);
+      }
+    }
+
+    /*loop {
       let mut frames = Vec::new();
       {
-        let mut lock = self.input.lock().unwrap(); // Fatal error.
+        //while let Some(frame) = lock.pop_front() {
+        //  frames.push(frame);
+        //  //if frames.len() > 100 { break; } // TODO: Prevent unbounded growth.
+        //}
 
-        while let Some(frame) = lock.pop_front() {
-          frames.push(frame);
-          //if frames.len() > 1_000 { break; } // TODO: Prevent unbounded growth.
+        loop {
+          let mut lock = self.input.lock().unwrap(); // Fatal error.
+          let frame = lock.pop_front();
+
+          match frame {
+            None => break, // Ran out of frames
+            Some(frame) => frames.push(frame),
+          }
         }
+
       }
 
       let mut points = Vec::new();
@@ -76,14 +114,13 @@ impl Pipeline {
       }
 
       {
-        let mut lock = self.output.lock().unwrap(); // Fatal error.
-
         // TODO: Prevent over-fill.
         for point in points {
+          let mut lock = self.output.lock().unwrap(); // Fatal error.
           (*lock).push_back(point);
         }
       }
-    }
+    }*/
   }
 }
 

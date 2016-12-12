@@ -44,7 +44,8 @@ pub fn gl_window(dac: Arc<Dac>, pipeline: Arc<Pipeline>) {
                 ctx.transform,
                 gfx);
 
-        let result = pipeline.dequeue(1_000);
+        println!("Ready Draw.");
+        let result = pipeline.dequeue(10_000);
         let points = match result {
           Err(_) => Vec::new(), // TODO
           Ok(points) => points,
@@ -69,6 +70,9 @@ pub fn gl_window(dac: Arc<Dac>, pipeline: Arc<Pipeline>) {
             ],
             &ctx.draw_state, ctx.transform, gfx);
         }
+
+        println!("Draw.\n");
+
       });
 
       target.finish().unwrap();
