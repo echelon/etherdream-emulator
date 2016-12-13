@@ -13,14 +13,12 @@ use protocol::DacResponse;
 use protocol::DacStatus;
 use protocol::Point;
 use protocol::ResponseState;
-use std::collections::VecDeque;
 use std::io::Cursor;
 use std::io::Read;
 use std::io::Write;
 use std::net::TcpListener;
 use std::net::TcpStream;
 use std::sync::Arc;
-use std::sync::Mutex;
 use std::sync::RwLock;
 
 /// Size of a single point in bytes.
@@ -125,10 +123,9 @@ impl Dac {
             // TODO: Cleanup.
             match self.status.try_write() {
               Err(_) => {},
-              Ok(mut status) => {
+              Ok(mut _status) => {
                 // TODO: Report buffer size to apply back pressure.
-                //status.buffer_fullness = num_points;
-                //status.buffer_fullness = self.pipeline.input_len().unwrap() as u16;
+                //status.buffer_fullness = self.pipeline.buffer_size().unwrap();
               },
             }
 
