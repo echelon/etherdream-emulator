@@ -25,7 +25,7 @@ pub struct DrawPoint {
 /// as the OpenGL/drawing thread.
 pub struct Pipeline {
   input: Mutex<VecDeque<DacFrame>>,
-  output: Mutex<VecDeque<DrawPoint>>,
+  output: Mutex<VecDeque<Point>>,
   frame_limit: usize,
   point_limit: usize,
 }
@@ -59,7 +59,7 @@ impl Pipeline {
 
   /// Dequeue points from the graphics thread.
   pub fn dequeue(&self, num_points: usize)
-                 -> Result<Vec<DrawPoint>, EmulatorError> {
+                 -> Result<Vec<Point>, EmulatorError> {
     let mut buf = Vec::new();
     let mut lock = self.output.lock()?;
 
@@ -154,12 +154,12 @@ impl Pipeline {
 }
 
 /// Parse raw point bytes into structured Points.
-fn parse_points(dac_frame: DacFrame) -> Vec<DrawPoint> {
+fn parse_points(dac_frame: DacFrame) -> Vec<Point> {
   let mut reader = Cursor::new(dac_frame.point_data);
-  let mut points : Vec<DrawPoint> = Vec::new();
+  let mut points : Vec<Point> = Vec::new();
 
   for _i in 0 .. dac_frame.num_points {
-    let _control = reader.read_u16::<LittleEndian>().unwrap();
+    /*let _control = reader.read_u16::<LittleEndian>().unwrap();
     let x = map_x(reader.read_i16::<LittleEndian>().unwrap(), 600);
     let y = map_y(reader.read_i16::<LittleEndian>().unwrap(), 600);
     let _i = reader.read_u16::<LittleEndian>().unwrap();
@@ -169,8 +169,20 @@ fn parse_points(dac_frame: DacFrame) -> Vec<DrawPoint> {
     let _u1 = reader.read_u16::<LittleEndian>().unwrap();
     let _u2 = reader.read_u16::<LittleEndian>().unwrap();
 
-    points.push(DrawPoint { x: x, y: y, r: r, g: g, b: b });
-  }
+    points.push(DrawPoint { x: x, y: y, r: r, g: g, b: b });*/
+    points.push(Point {
+      control: reader.read_u16::<LittleEndian>().unwrap(),
+      x:       reader.read_i16::<LittleEndian>().unwrap(),
+      y:       reader.read_i16::<LittleEndian>().unwrap(),
+      i:       reader.read_u16::<LittleEndian>().unwrap(),
+      r:       reader.read_u16::<LittleEndian>().unwrap(),
+      g:       reader.read_u16::<LittleEndian>().unwrap(),
+      b:       reader.read_u16::<LittleEndian>().unwrap(),
+      u1:      reader.read_u16::<LittleEndian>().unwrap(),
+      u2:      reader.read_u16::<LittleEndian>().unwrap(),
+    })
+
+}
 
   points
 }

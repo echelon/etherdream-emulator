@@ -53,7 +53,6 @@ pub fn gl_window(dac: Arc<Dac>, pipeline: Arc<Pipeline>) {
 
         //for point in dac.drain_points() {
         for point in points {
-          /*
           let x = map_x(point.x, args.width);
           let y = map_y(point.y, args.height);
           let r = map_color(point.r);
@@ -70,9 +69,8 @@ pub fn gl_window(dac: Arc<Dac>, pipeline: Arc<Pipeline>) {
                   1.0,
             ],
             &ctx.draw_state, ctx.transform, gfx);
-            */
 
-          Ellipse::new([point.r, point.g, point.b, 1.0])
+          /*Ellipse::new([point.r, point.g, point.b, 1.0])
               .draw([
                 // Position
                 point.x,
@@ -80,7 +78,7 @@ pub fn gl_window(dac: Arc<Dac>, pipeline: Arc<Pipeline>) {
                 // Size of shape.
                 1.0,
                 1.0,
-              ], &ctx.draw_state, ctx.transform, gfx);
+              ], &ctx.draw_state, ctx.transform, gfx);*/
         }
 
         println!("Draw.\n");
