@@ -4,6 +4,7 @@ use RuntimeOpts;
 use byteorder::LittleEndian;
 use byteorder::ReadBytesExt;
 use error::ClientError;
+use error::EmulatorError;
 use pipeline::Pipeline;
 use protocol::COMMAND_BEGIN;
 use protocol::COMMAND_DATA;
@@ -19,6 +20,7 @@ use std::net::TcpListener;
 use std::net::TcpStream;
 use std::sync::Arc;
 use std::sync::RwLock;
+use std::time::Duration;
 
 /// Size of a single point in bytes.
 const POINT_SIZE : usize = 18;
@@ -33,8 +35,7 @@ pub struct Dac {
   /// Runtime arguments supplied to the program.
   opts: RuntimeOpts,
 
-  // TODO: Refactor so locking not required. Only a single thread
-  // needs this.
+  // TODO: Refactor so locking not required. Only a single thread needs this.
   /// Runtime state of the virtual dac.
   status: RwLock<DacStatus>,
 
@@ -51,13 +52,17 @@ impl Dac {
     }
   }
 
-  pub fn listen_loop(&self) {
-    loop { self.listen(); }
+  /// Run the dac server. Accepts a connection, then begins the dac state
+  /// machine to handle points sent by the client.
+  pub fn run(&self) {
+    loop {
+      let _r = self.listen(); // TODO: handle errors.
+    }
   }
 
-  pub fn listen(&self) {
-    // TODO: Set timeout on listener
-    let listener = TcpListener::bind("0.0.0.0:7765").unwrap();
+  pub fn listen(&self) -> Result<(), EmulatorError> {
+    let listener = TcpListener::bind("0.0.0.0:7765")?;
+    listener.set_ttl(1_000);
 
     match listener.accept() {
       Err(e) => {
@@ -66,12 +71,15 @@ impl Dac {
       Ok((mut stream, _socket_addr)) => {
         self.log("Connected!");
 
+        stream.set_read_timeout(Some(Duration::from_millis(1_000)))?;
+        stream.set_write_timeout(Some(Duration::from_millis(1_000)))?;
+
         // Write info
         self.write(&mut stream, &Command::Ping);
 
         loop {
           // Read-write loop
-          let command = self.read_command(&mut stream);
+          let command = self.read_command(&mut stream)?;
 
           self.log(&format!("Read command: {}", command));
 
@@ -87,65 +95,63 @@ impl Dac {
             },
             _ => {
               println!("Cannot send ack for unknown/unhandled command.");
-              return;
+              return Err(EmulatorError::UnknownCommand);
             },
           }
         }
       },
     };
+
+    Ok(()) // Should not reach.
   }
 
-  fn read_command(&self, stream: &mut TcpStream) -> Command {
+  fn read_command(&self, stream: &mut TcpStream)
+      -> Result<Command, EmulatorError> {
     let mut buf = [0u8; 2048]; // TODO: Better buffer size.
 
-    match stream.read(&mut buf) {
-      Err(_) => {
-        self.log("Read error.");
-        Command::Unknown{ command: 0u8 } // TODO: Return error instead
-      },
-      Ok(size) => {
-        // TODO: Implement all commands
-        match buf[0] {
-          COMMAND_DATA => {
-            let (num_points, point_bytes) =
-                self.read_point_data(stream, buf, size);
+    let size = stream.read(&mut buf)?;
 
-            let frame = DacFrame {
-              num_points: num_points,
-              point_data: point_bytes,
-            };
+    // TODO: Implement all commands
+    let command = match buf[0] {
+      COMMAND_DATA => {
+        let (num_points, point_bytes) =
+            self.read_point_data(stream, buf, size);
 
-            // FIXME: Actually handle.
-            let _r = self.pipeline.enqueue(frame);
+        let frame = DacFrame {
+          num_points: num_points,
+          point_data: point_bytes,
+        };
 
-            // TODO: Report buffer size to apply back pressure.
-            //match self.status.try_write() {
-            //  Err(_) => {},
-            //  Ok(mut status) => {
-            //
-            //    status.buffer_fullness = self.pipeline.buffer_size().unwrap();
-            //  },
-            //}
+        // FIXME: Actually handle.
+        let _r = self.pipeline.enqueue(frame);
 
-            Command::Data { num_points: num_points, points: Vec::new() }
-          },
-          COMMAND_PREPARE => {
-            self.log("Read prepare");
-            Command::Prepare
-          },
-          COMMAND_BEGIN => {
-            match parse_begin(&buf) {
-              Ok(b) => b,
-              Err(_) => Command::Unknown { command: buf[0] },
-            }
-          },
-          _ => {
-            self.log("Read unknown");
-            Command::Unknown{ command: buf[0] }
+        // TODO: Report buffer size to apply back pressure.
+        match self.status.try_write() {
+          Err(_) => {},
+          Ok(mut status) => {
+            status.buffer_fullness = self.pipeline.queue_size();
           },
         }
+
+        Command::Data { num_points: num_points, points: Vec::new() }
       },
-    }
+      COMMAND_PREPARE => {
+        self.log("Read prepare");
+        Command::Prepare
+      },
+      COMMAND_BEGIN => {
+        match parse_begin(&buf) {
+          Ok(b) => b,
+          Err(_) => Command::Unknown { command: buf[0] },
+        }
+      },
+      _ => {
+        self.log("Read unknown");
+        Command::Unknown{ command: buf[0] }
+      },
+    };
+
+    Ok(command)
   }
 
   // TODO: Simplify and clean up
