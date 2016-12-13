@@ -81,7 +81,7 @@ fn main() {
   thread::spawn(move || gl_window(pipeline2));
   thread::spawn(move || pipeline.process());
 
-  dac.listen_loop();
+  dac.run();
 }
 
 /// Send a UDP broadcast announcing the EtherDream to the network.
@@ -120,4 +120,3 @@ fn broadcast_thread() {
     socket.send_to(&broadcast.serialize(), multicast_socket).unwrap();
   }
 }
-
