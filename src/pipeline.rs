@@ -36,8 +36,8 @@ impl Pipeline {
     Pipeline {
       input: Mutex::new(VecDeque::new()),
       output: Mutex::new(VecDeque::new()),
-      frame_limit: 10_000,
-      point_limit: 100_000,
+      frame_limit: 10,
+      point_limit: 5000,
     }
   }
 
@@ -69,7 +69,7 @@ impl Pipeline {
         Some(frame) => buf.push(frame),
       }
     }
-    (*lock) = VecDeque::new();
+    //(*lock) = VecDeque::new(); // Drop points over the limit on the floor.
     Ok(buf)
   }
 
@@ -96,7 +96,7 @@ impl Pipeline {
       let frame = match frame {
         Some(f) => f,
         None => {
-          thread::sleep(Duration::from_millis(100));
+          thread::sleep(Duration::from_millis(100)); // No work to do.
           continue;
         },
       };
@@ -108,6 +108,9 @@ impl Pipeline {
       let mut lock = self.output.lock().unwrap(); // Fatal error.
 
       for point in points {
+        if (*lock).len() > self.point_limit {
+          break; // TODO: Don't generate extra wasted points if over limit.
+        }
         (*lock).push_back(point);
       }
     }
