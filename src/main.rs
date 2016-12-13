@@ -25,6 +25,7 @@ use protocol::Broadcast;
 use protocol::DacStatus;
 use render::gl_window;
 use std::net::Ipv4Addr;
+use std::net::IpAddr;
 use std::net::SocketAddr;
 use std::net::SocketAddrV4;
 use std::sync::Arc;
@@ -75,11 +76,10 @@ fn main() {
   let pipeline = Arc::new(Pipeline::new());
   let pipeline2 = pipeline.clone();
 
-  let dac = Arc::new(Dac::new(&args, pipeline.clone()));
-  let dac2 = dac.clone();
+  let dac = Dac::new(&args, pipeline.clone());
 
   thread::spawn(|| broadcast_thread());
-  thread::spawn(move || gl_window(dac2, pipeline2));
+  thread::spawn(move || gl_window(pipeline2));
   thread::spawn(move || pipeline.process());
 
   dac.listen_loop();
@@ -94,7 +94,7 @@ fn broadcast_thread() {
   socket.set_broadcast(true).unwrap();
 
   let multicast_ip = Ipv4Addr::new(255, 255, 255, 255);
-  let multicast_socket = SocketAddr::V4(SocketAddrV4::new(multicast_ip, UDP_PORT));
+  let multicast_socket = SocketAddr::new(IpAddr::V4(multicast_ip), UDP_PORT);
 
   let broadcast = Broadcast {
       mac_address: vec![1, 2, 3, 4, 5, 255],

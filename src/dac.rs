@@ -22,12 +22,9 @@ use std::net::TcpStream;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::RwLock;
-use std::time::Instant;
 
 /// Size of a single point in bytes.
 const POINT_SIZE : usize = 18;
-
-type PointQueue = VecDeque<Point>;
 
 /// Points sent from the Dac in a single DATA command payload.
 pub struct DacFrame {
@@ -44,13 +41,7 @@ pub struct Dac {
   /// Runtime state of the virtual dac.
   status: RwLock<DacStatus>,
 
-  /// Queue of points read from a client.
-  points: Mutex<PointQueue>,
-
-  /// Maximum size of the queue. (TODO: Notes on [non-]blocking.)
-  queue_limit: usize,
-
-  /// Point pipeline
+  /// Point pipeline (point queue)
   pipeline: Arc<Pipeline>,
 }
 
@@ -59,8 +50,6 @@ impl Dac {
     Dac {
       opts: opts.clone(),
       status: RwLock::new(DacStatus::empty()),
-      points: Mutex::new(PointQueue::new()),
-      queue_limit: 60_000,
       pipeline: pipeline,
     }
   }
@@ -85,7 +74,6 @@ impl Dac {
 
         loop {
           // Read-write loop
-          let start = Instant::now();
           let command = self.read_command(&mut stream);
 
           self.log(&format!("Read command: {}", command));
@@ -105,103 +93,9 @@ impl Dac {
               return;
             },
           }
-
-          // TODO:
-          //  - Dac thread consumes protocol
-          //  - Point thread converts into points
-          //  - Draw thread consumes points
-
-
-          /*match command {
-            Command::Data { points, .. } => {
-              let _r = self.pipeline.enqueue(points); // TODO: Error handling!
-              self.enqueue_points(points);
-            },
-            _ => {},
-          }*/
-          /*
-
-          Original Times:
-
-            Elapsed: Duration { secs: 0, nanos: 12799693 }
-            Elapsed: Duration { secs: 0, nanos: 5126380 }
-            Elapsed: Duration { secs: 0, nanos: 5191206 }
-            Elapsed: Duration { secs: 0, nanos: 5271904 }
-            Elapsed: Duration { secs: 0, nanos: 5350840 }
-            Elapsed: Duration { secs: 0, nanos: 5385611 }
-            Elapsed: Duration { secs: 0, nanos: 5414422 }
-            Elapsed: Duration { secs: 0, nanos: 5416543 }
-
-          Without parsing:
-
-            Elapsed: Duration { secs: 0, nanos: 12575459 }
-            Elapsed: Duration { secs: 0, nanos: 12713894 }
-            Elapsed: Duration { secs: 0, nanos: 12857095 }
-            Elapsed: Duration { secs: 0, nanos: 13090941 }
-            Elapsed: Duration { secs: 0, nanos: 13602049 }
-            Elapsed: Duration { secs: 0, nanos: 14051671 }
-
-          Without parsing x2:
-
-            Elapsed: Duration { secs: 0, nanos: 5055916 }
-            Elapsed: Duration { secs: 0, nanos: 5100141 }
-            Elapsed: Duration { secs: 0, nanos: 5122131 }
-            Elapsed: Duration { secs: 0, nanos: 6235534 }
-            Elapsed: Duration { secs: 0, nanos: 6257061 }
-            Elapsed: Duration { secs: 0, nanos: 6432697 }
-            Elapsed: Duration { secs: 0, nanos: 6534558 }
-            Elapsed: Duration { secs: 0, nanos: 6722200 }
-            Elapsed: Duration { secs: 0, nanos: 7244421 }
-            Elapsed: Duration { secs: 0, nanos: 7733401 }
-          */
-
-          let elapsed = start.elapsed();
-
-          println!("Elapsed: {:?}", elapsed);
         }
       },
     };
-  }
-
-  /// Drain points off the internal queue.
-  pub fn drain_points(&self) -> Vec<Point> {
-    match self.points.lock() {
-      Err(_) => {
-        println!("Error obtaining lock.");
-        Vec::new()
-      },
-      Ok(mut queue) => {
-        let mut points = Vec::new();
-        while let Some(point) = queue.pop_front() {
-          points.push(point);
-        }
-        points
-      },
-    }
-  }
-
-  /// Enqueue points. If the queue is full, reject and return false.
-  fn enqueue_points(&self, points: Vec<Point>) -> bool {
-    match self.points.lock() {
-      Err(_) => {
-        false
-      },
-      Ok(mut queue) => {
-        if queue.len() + points.len() > self.queue_limit {
-          println!("Queue max reached.");
-          false
-        } else {
-          queue.extend(points);
-          match self.status.try_write() {
-            Err(_) => {},
-            Ok(mut status) => {
-              status.buffer_fullness = queue.len() as u16;
-            },
-          }
-          true
-        }
-      }
-    }
   }
 
   fn read_command(&self, stream: &mut TcpStream) -> Command {
@@ -219,7 +113,6 @@ impl Dac {
             let (num_points, point_bytes) =
                 self.read_point_data(stream, buf, size);
 
-            //let points = self.parse_points(num_points, point_bytes);
             // FIXME: Error handling!
             // TODO: Refactor.
             let frame = DacFrame {
@@ -233,6 +126,7 @@ impl Dac {
             match self.status.try_write() {
               Err(_) => {},
               Ok(mut status) => {
+                // TODO: Report buffer size to apply back pressure.
                 //status.buffer_fullness = num_points;
                 //status.buffer_fullness = self.pipeline.input_len().unwrap() as u16;
               },
