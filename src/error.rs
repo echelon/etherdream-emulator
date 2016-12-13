@@ -9,8 +9,6 @@ use std::sync::PoisonError;
 /// System-wide error type.
 #[derive(Debug)]
 pub enum EmulatorError {
-  /// Cannot pull anything from the pipeline.
-  PipelineEmpty,
   /// Cannot put anything else on the pipeline.
   PipelineFull,
   /// An issue obtaining the lock.
@@ -46,7 +44,7 @@ impl error::Error for ClientError {
 }
 
 impl From<io::Error> for ClientError {
-  fn from(error: io::Error) -> ClientError {
+  fn from(_error: io::Error) -> ClientError {
     ClientError::ConnectionError
   }
 }
@@ -64,8 +62,7 @@ impl fmt::Display for EmulatorError {
 }
 
 impl<T> From<PoisonError<T>> for EmulatorError {
-  fn from(error: PoisonError<T>) -> EmulatorError {
+  fn from(_error: PoisonError<T>) -> EmulatorError {
     EmulatorError::LockError
   }
 }
-

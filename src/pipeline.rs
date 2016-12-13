@@ -32,14 +32,6 @@ impl Pipeline {
     }
   }
 
-  /// Get the buffer size.
-  /// This can be used to apply back-off pressure to the client.
-  pub fn buffer_size(&self) -> Result<u16, EmulatorError> {
-    let lock = self.output.lock()?;
-    let len = (*lock).len();
-    Ok(len as u16)
-  }
-
   /// Enqueue frames from the network thread.
   pub fn enqueue(&self, frame: DacFrame) -> Result<(), EmulatorError> {
     let mut lock = self.input.lock()?;

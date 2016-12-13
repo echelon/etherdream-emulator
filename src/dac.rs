@@ -11,7 +11,6 @@ use protocol::COMMAND_PREPARE;
 use protocol::Command;
 use protocol::DacResponse;
 use protocol::DacStatus;
-use protocol::Point;
 use protocol::ResponseState;
 use std::io::Cursor;
 use std::io::Read;
@@ -111,23 +110,22 @@ impl Dac {
             let (num_points, point_bytes) =
                 self.read_point_data(stream, buf, size);
 
-            // FIXME: Error handling!
-            // TODO: Refactor.
             let frame = DacFrame {
               num_points: num_points,
               point_data: point_bytes,
             };
 
+            // FIXME: Actually handle.
             let _r = self.pipeline.enqueue(frame);
 
-            // TODO: Cleanup.
-            match self.status.try_write() {
-              Err(_) => {},
-              Ok(mut _status) => {
-                // TODO: Report buffer size to apply back pressure.
-                //status.buffer_fullness = self.pipeline.buffer_size().unwrap();
-              },
-            }
+            // TODO: Report buffer size to apply back pressure.
+            //match self.status.try_write() {
+            //  Err(_) => {},
+            //  Ok(mut status) => {
+            //
+            //    status.buffer_fullness = self.pipeline.buffer_size().unwrap();
+            //  },
+            //}
 
             Command::Data { num_points: num_points, points: Vec::new() }
           },
@@ -138,7 +136,7 @@ impl Dac {
           COMMAND_BEGIN => {
             match parse_begin(&buf) {
               Ok(b) => b,
-              Err(e) => Command::Unknown { command: buf[0] },
+              Err(_) => Command::Unknown { command: buf[0] },
             }
           },
           _ => {
@@ -186,29 +184,6 @@ impl Dac {
     }
 
     (num_points, point_buf)
-  }
-
-  /// Parse raw point bytes into structured Points.
-  fn parse_points(&self, num_points: u16, point_data: Vec<u8>)
-      -> Vec<Point> {
-    let mut reader = Cursor::new(point_data);
-    let mut points : Vec<Point> = Vec::new();
-
-    for _i in 0 .. num_points {
-      points.push(Point {
-        control: reader.read_u16::<LittleEndian>().unwrap(),
-        x:       reader.read_i16::<LittleEndian>().unwrap(),
-        y:       reader.read_i16::<LittleEndian>().unwrap(),
-        i:       reader.read_u16::<LittleEndian>().unwrap(),
-        r:       reader.read_u16::<LittleEndian>().unwrap(),
-        g:       reader.read_u16::<LittleEndian>().unwrap(),
-        b:       reader.read_u16::<LittleEndian>().unwrap(),
-        u1:      reader.read_u16::<LittleEndian>().unwrap(),
-        u2:      reader.read_u16::<LittleEndian>().unwrap(),
-      })
-    }
-
-    points
   }
 
   /// Write ACK back to client.
