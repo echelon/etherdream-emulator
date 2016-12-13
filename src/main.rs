@@ -120,4 +120,3 @@ fn broadcast_thread() {
     socket.send_to(&broadcast.serialize(), multicast_socket).unwrap();
   }
 }
-

@@ -182,7 +182,6 @@ pub enum Command {
   /// will still be ACKed (as long as the DAC is Prepared or Playing.)
   Data {
     num_points: u16,
-    points: Vec<Point>
   },
 }
 

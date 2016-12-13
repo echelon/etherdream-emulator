@@ -32,13 +32,6 @@ impl Pipeline {
     }
   }
 
-  pub fn queue_size(&self) -> u16 {
-    match self.output.lock() {
-      Err(_) => self.point_limit as u16,
-      Ok(lock) => (*lock).len() as u16,
-    }
-  }
-
   /// Enqueue frames from the network thread.
   pub fn enqueue(&self, frame: DacFrame) -> Result<(), EmulatorError> {
     let mut lock = self.input.lock()?;

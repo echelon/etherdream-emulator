@@ -15,6 +15,8 @@ pub enum EmulatorError {
   IoError { cause: io::Error },
   /// An issue obtaining a std::sync lock. Should not occur.
   LockError,
+  /// Error parsing client request.
+  ParseError,
   /// Cannot put anything else on the point pipeline.
   PipelineFull,
   /// Unknown command received from the client. Some client commands are valid,
@@ -22,56 +24,38 @@ pub enum EmulatorError {
   UnknownCommand,
 }
 
-// TODO: Unify error types.
-/// Represents an error that occurred when talking to the client.
-#[derive(Debug)]
-pub enum ClientError {
-  ConnectionError,
-  ParseError,
-}
-
-impl fmt::Display for ClientError {
+impl fmt::Display for EmulatorError {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
     let error_detail = match *self {
-      ClientError::ConnectionError => "ConnectionError",
-      ClientError::ParseError => "ParseError",
+      EmulatorError::IoError { ref cause  } => {
+        return write!(f, "IoError {}", cause);
+      },
+      EmulatorError::ClientError => "ClientError",
+      EmulatorError::LockError => "LockError",
+      EmulatorError::ParseError => "ParseError",
+      EmulatorError::PipelineFull => "PipelineFull",
+      EmulatorError::UnknownCommand => "UnknownCommand",
     };
     write!(f, "{}", error_detail)
   }
 }
 
-impl error::Error for ClientError {
-  fn description(&self) -> &str {
-    match *self {
-      ClientError::ConnectionError =>
-          "There was a problem with the client connection.",
-      ClientError::ParseError =>
-          "There was a problem parsing the client protocol.",
-    }
-  }
-}
-
-impl From<io::Error> for ClientError {
-  fn from(_error: io::Error) -> ClientError {
-    ClientError::ConnectionError
-  }
-}
-
 impl error::Error for EmulatorError {
   fn description(&self) -> &str {
-    "TODO" // TODO
+    match *self {
+      EmulatorError::ClientError => "ClientError",
+      EmulatorError::IoError { .. } => "IoError",
+      EmulatorError::LockError => "LockError",
+      EmulatorError::ParseError => "ParseError",
+      EmulatorError::PipelineFull => "PipelineFull",
+      EmulatorError::UnknownCommand => "UnknownCommand",
+    }
   }
 }
 
 impl From<io::Error> for EmulatorError {
   fn from(error: io::Error) -> EmulatorError {
     EmulatorError::IoError { cause: error }
-  }
-}
-
-impl fmt::Display for EmulatorError {
-  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-    write!(f, "TODO") // TODO
   }
 }
 

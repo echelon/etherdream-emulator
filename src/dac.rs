@@ -3,7 +3,6 @@
 use RuntimeOpts;
 use byteorder::LittleEndian;
 use byteorder::ReadBytesExt;
-use error::ClientError;
 use error::EmulatorError;
 use pipeline::Pipeline;
 use protocol::COMMAND_BEGIN;
@@ -63,7 +62,6 @@ impl Dac {
 
   pub fn listen(&self) -> Result<(), EmulatorError> {
     let listener = TcpListener::bind("0.0.0.0:7765")?;
-    listener.set_ttl(10);
 
     let (mut stream, _socket_addr) = listener.accept()?;
     stream.set_read_timeout(Some(Duration::from_millis(100)))?;
@@ -74,6 +72,7 @@ impl Dac {
     // Write info
     self.write(&mut stream, &Command::Ping)?;
 
+    // TODO: Refactor into proper state machine.
     loop {
       // Read-write loop
       let command = self.read_command(&mut stream)?;
@@ -97,7 +96,7 @@ impl Dac {
       }
     }
 
-    Ok(()) // Should not reach.
+    unreachable!()
   }
 
   fn read_command(&self, stream: &mut TcpStream)
@@ -106,48 +105,40 @@ impl Dac {
 
     let size = stream.read(&mut buf)?;
 
-    // TODO: Implement all commands
-    let command = match buf[0] {
+    match buf[0] {
       COMMAND_DATA => {
-        let (num_points, point_bytes) =
-            self.read_point_data(stream, buf, size)?;
-
+        let (num_points, point_data) = self.read_point_data(stream, buf, size)?;
         let frame = DacFrame {
           num_points: num_points,
-          point_data: point_bytes,
+          point_data: point_data,
         };
 
-        // FIXME: Actually handle.
+        // TODO: Handle full buffer.
         let _r = self.pipeline.enqueue(frame);
 
         // TODO: Report buffer size to apply back pressure.
-        match self.status.try_write() {
-          Err(_) => {},
-          Ok(mut status) => {
-            status.buffer_fullness = self.pipeline.queue_size();
-          },
-        }
+        //match self.status.try_write() {
+        //  Err(_) => {},
+        //  Ok(mut status) => {
+        //    status.buffer_fullness = self.pipeline.queue_size();
+        //  },
+        //}
 
-        Command::Data { num_points: num_points, points: Vec::new() }
+        Ok(Command::Data { num_points: num_points })
       },
       COMMAND_PREPARE => {
-        self.log("Read prepare");
-        Command::Prepare
+        Ok(Command::Prepare)
       },
       COMMAND_BEGIN => {
-        match parse_begin(&buf) {
-          Ok(b) => b,
-          // TODO: Include command code in error.
-          Err(_) => return Err(EmulatorError::UnknownCommand),
-        }
+        // TODO: Include command code in error.
+        parse_begin(&buf).map_err(|_| EmulatorError::UnknownCommand)
       },
       _ => {
+        // TODO: Implement all commands
         self.log("Read unknown");
-        return Err(EmulatorError::UnknownCommand);
+        Err(EmulatorError::UnknownCommand)
       },
-    };
-
-    Ok(command)
+    }
   }
 
   // TODO: Simplify and clean up
@@ -157,8 +148,6 @@ impl Dac {
                      buf: [u8; 2048],
                      read_size: usize)
                      -> Result<(u16, Vec<u8>), EmulatorError> {
-    self.log("Reading data");
-
     let num_points = read_u16(&buf[1 .. 3]);
 
     self.log(&format!("Reading {} points.", num_points));
@@ -198,7 +187,6 @@ impl Dac {
       ResponseState::Ack, command.value(), status).serialize();
 
     let size = stream.write(response)?;
-    self.log(&format!("Wrote {} ACK, {} bytes", command.name(), size));
 
     Ok(())
   }
@@ -225,20 +213,17 @@ fn read_u16(bytes: &[u8]) -> u16 {
 
 /// Parse a 'begin' command.
 #[inline]
-pub fn parse_begin(bytes: &[u8]) -> Result<Command, ClientError> {
+pub fn parse_begin(bytes: &[u8]) -> Result<Command, EmulatorError> {
   let mut reader = Cursor::new(bytes);
-  let b = try!(reader.read_u8()); // FIXME
+  let b = reader.read_u8()?;
 
   if b != COMMAND_BEGIN {
-    return Err(ClientError::ParseError);
+    return Err(EmulatorError::ParseError);
   }
 
-  let lwm = try!(reader.read_u16::<LittleEndian>()); // FIXME
-  let pr = try!(reader.read_u32::<LittleEndian>()); // FIXME
-
   Ok(Command::Begin {
-    low_water_mark: lwm,
-    point_rate: pr,
+    low_water_mark: reader.read_u16::<LittleEndian>()?,
+    point_rate: reader.read_u32::<LittleEndian>()?,
   })
 }
 
