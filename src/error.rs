@@ -9,6 +9,8 @@ use std::sync::PoisonError;
 /// System-wide error type.
 #[derive(Debug)]
 pub enum EmulatorError {
+  /// Miscellaneous client error.
+  ClientError,
   /// Network error.
   IoError { cause: io::Error },
   /// An issue obtaining a std::sync lock. Should not occur.

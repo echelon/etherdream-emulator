@@ -65,47 +65,37 @@ impl Dac {
     let listener = TcpListener::bind("0.0.0.0:7765")?;
     listener.set_ttl(10);
 
-    match listener.accept() {
-      Err(e) => {
-        println!("Error: {:?}", e);
-      },
-      Ok((mut stream, _socket_addr)) => {
-        self.log("Connected!");
+    let (mut stream, _socket_addr) = listener.accept()?;
+    stream.set_read_timeout(Some(Duration::from_millis(100)))?;
+    stream.set_write_timeout(Some(Duration::from_millis(100)))?;
 
-        stream.set_read_timeout(Some(Duration::from_millis(100)))?;
-        stream.set_write_timeout(Some(Duration::from_millis(100)))?;
+    self.log("Connected!");
 
-        // Write info
-        self.write(&mut stream, &Command::Ping)?;
+    // Write info
+    self.write(&mut stream, &Command::Ping)?;
 
-        loop {
-          // Read-write loop
-          println!("Read command...");
-          let command = self.read_command(&mut stream)?;
+    loop {
+      // Read-write loop
+      let command = self.read_command(&mut stream)?;
 
-          self.log(&format!("Read command: {}", command));
+      self.log(&format!("Read command: {}", command));
 
-          match command {
-            Command::Begin { .. } => {
-              println!("Write Begin Response...");
-              self.write(&mut stream, &command);
-            },
-            Command::Prepare => {
-              println!("Write Prepare Response...");
-              self.write(&mut stream, &command);
-            },
-            Command::Data { .. } => {
-              println!("Write Data Response...");
-              self.write(&mut stream, &command);
-            },
-            _ => {
-              println!("Cannot send ack for unknown/unhandled command.");
-              return Err(EmulatorError::UnknownCommand);
-            },
-          }
-        }
-      },
-    };
+      match command {
+        Command::Begin { .. } => {
+          self.write(&mut stream, &command);
+        },
+        Command::Prepare => {
+          self.write(&mut stream, &command);
+        },
+        Command::Data { .. } => {
+          self.write(&mut stream, &command);
+        },
+        _ => {
+          println!("Cannot send ack for unknown/unhandled command.");
+          return Err(EmulatorError::UnknownCommand);
+        },
+      }
+    }
 
     Ok(()) // Should not reach.
   }
@@ -186,6 +176,12 @@ impl Dac {
 
       let size = stream.read(&mut read_buf)?;
 
+      if size == 0 {
+        // NB: If the client disconnects now, we can get stuck in a loop reading
+        // zero bytes. Not sure why the socket doesn't report this error.
+        return Err(EmulatorError::ClientError);
+      }
+
       point_buf.extend_from_slice(&read_buf[0 .. size]);
       already_read += size;
     }
@@ -210,22 +206,25 @@ impl Dac {
   /// Reset internal status.
   fn reset_status(&self) {
     let _r = self.status.try_write()
-        .map(|mut status| *status = DacStatus::empty());
+        .map(|mut status| *status = DacStatus::empty()); // Ignore lock errors.
   }
 
   fn log(&self, message: &str) {
     if self.opts.debug_protocol {
+      // TODO: use logging crate or make a compile flag instead.
       println!("{}", message);
     }
   }
 }
 
 // TODO: Use the byteorder library instead.
+#[inline]
 fn read_u16(bytes: &[u8]) -> u16 {
   ((bytes[0] as u16) << 8) | (bytes[1] as u16)
 }
 
 /// Parse a 'begin' command.
+#[inline]
 pub fn parse_begin(bytes: &[u8]) -> Result<Command, ClientError> {
   let mut reader = Cursor::new(bytes);
   let b = try!(reader.read_u8()); // FIXME
