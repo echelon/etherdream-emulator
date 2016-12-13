@@ -184,9 +184,6 @@ pub enum Command {
     num_points: u16,
     points: Vec<Point>
   },
-
-  /// An unknown command.
-  Unknown { command: u8 },
 }
 
 impl Command {
@@ -201,7 +198,6 @@ impl Command {
       Command::Prepare => 0x70,         // 'p'
       Command::QueueRateChange => 0x74, // 'q'
       Command::Stop => 0x73,            // 's'
-      Command::Unknown { command } => command,
     }
   }
 
@@ -215,7 +211,6 @@ impl Command {
       Command::Prepare => "Prepare",
       Command::QueueRateChange => "QueueRateChange",
       Command::Stop => "Stop",
-      Command::Unknown { .. } => "Unknown Command",
     }
   }
 }
@@ -240,8 +235,6 @@ impl fmt::Display for Command {
           "QueueRateChange".to_string(),
       Command::Stop =>
           "Stop".to_string(),
-      Command::Unknown { command } =>
-          format!("Unknown command: {}", command),
     };
     write!(f, "{}", display)
   }

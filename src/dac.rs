@@ -56,6 +56,7 @@ impl Dac {
   /// machine to handle points sent by the client.
   pub fn run(&self) {
     loop {
+      self.reset_status();
       let _r = self.listen(); // TODO: handle errors.
     }
   }
@@ -204,6 +205,12 @@ impl Dac {
     self.log(&format!("Wrote {} ACK, {} bytes", command.name(), size));
 
     Ok(())
+  }
+
+  /// Reset internal status.
+  fn reset_status(&self) {
+    let _r = self.status.try_write()
+        .map(|mut status| *status = DacStatus::empty());
   }
 
   fn log(&self, message: &str) {
