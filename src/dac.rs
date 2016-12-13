@@ -62,7 +62,7 @@ impl Dac {
 
   pub fn listen(&self) -> Result<(), EmulatorError> {
     let listener = TcpListener::bind("0.0.0.0:7765")?;
-    listener.set_ttl(1_000);
+    listener.set_ttl(10);
 
     match listener.accept() {
       Err(e) => {
@@ -71,26 +71,30 @@ impl Dac {
       Ok((mut stream, _socket_addr)) => {
         self.log("Connected!");
 
-        stream.set_read_timeout(Some(Duration::from_millis(1_000)))?;
-        stream.set_write_timeout(Some(Duration::from_millis(1_000)))?;
+        stream.set_read_timeout(Some(Duration::from_millis(100)))?;
+        stream.set_write_timeout(Some(Duration::from_millis(100)))?;
 
         // Write info
-        self.write(&mut stream, &Command::Ping);
+        self.write(&mut stream, &Command::Ping)?;
 
         loop {
           // Read-write loop
+          println!("Read command...");
           let command = self.read_command(&mut stream)?;
 
           self.log(&format!("Read command: {}", command));
 
           match command {
             Command::Begin { .. } => {
+              println!("Write Begin Response...");
               self.write(&mut stream, &command);
             },
             Command::Prepare => {
+              println!("Write Prepare Response...");
               self.write(&mut stream, &command);
             },
             Command::Data { .. } => {
+              println!("Write Data Response...");
               self.write(&mut stream, &command);
             },
             _ => {
@@ -115,7 +119,7 @@ impl Dac {
     let command = match buf[0] {
       COMMAND_DATA => {
         let (num_points, point_bytes) =
-            self.read_point_data(stream, buf, size);
+            self.read_point_data(stream, buf, size)?;
 
         let frame = DacFrame {
           num_points: num_points,
@@ -142,12 +146,13 @@ impl Dac {
       COMMAND_BEGIN => {
         match parse_begin(&buf) {
           Ok(b) => b,
-          Err(_) => Command::Unknown { command: buf[0] },
+          // TODO: Include command code in error.
+          Err(_) => return Err(EmulatorError::UnknownCommand),
         }
       },
       _ => {
         self.log("Read unknown");
-        Command::Unknown{ command: buf[0] }
+        return Err(EmulatorError::UnknownCommand);
       },
     };
 
@@ -157,8 +162,10 @@ impl Dac {
   // TODO: Simplify and clean up
   /// Continue streaming point data payload.
   /// Returns the number of points as well as the point bytes.
-  fn read_point_data(&self, stream: &mut TcpStream, buf: [u8; 2048],
-                     read_size: usize) -> (u16, Vec<u8>) {
+  fn read_point_data(&self, stream: &mut TcpStream,
+                     buf: [u8; 2048],
+                     read_size: usize)
+                     -> Result<(u16, Vec<u8>), EmulatorError> {
     self.log("Reading data");
 
     let num_points = read_u16(&buf[1 .. 3]);
@@ -176,40 +183,27 @@ impl Dac {
     while total_size > already_read {
       let mut read_buf = [0u8; 2048];
 
-      match stream.read(&mut read_buf) {
+      let size = stream.read(&mut read_buf)?;
 
-        Err(_) => {
-          println!("READ ERROR."); // TODO Result<T,E>
-          return (0, Vec::new());
-        },
-        Ok(size) => {
-          point_buf.extend_from_slice(&read_buf[0 .. size]);
-          already_read += size;
-        },
-      }
+      point_buf.extend_from_slice(&read_buf[0 .. size]);
+      already_read += size;
     }
 
-    (num_points, point_buf)
+    Ok((num_points, point_buf))
   }
 
   /// Write ACK back to client.
-  fn write(&self, stream: &mut TcpStream, command: &Command) {
-    let status = match self.status.read() {
-      Err(_) => { DacStatus::empty() },
-      Ok(s) => { s.clone() },
-    };
+  fn write(&self, stream: &mut TcpStream, command: &Command)
+      -> Result<(), EmulatorError> {
+    let status = self.status.read()?.clone();
 
-    let write_result = stream.write(
-      &DacResponse::new(ResponseState::Ack, command.value(), status).serialize());
+    let response = &DacResponse::new(
+      ResponseState::Ack, command.value(), status).serialize();
 
-    match write_result {
-      Err(_) => {
-        println!("Write error.");
-      },
-      Ok(size) => {
-        self.log(&format!("Wrote {} ACK, {} bytes", command.name(), size));
-      },
-    };
+    let size = stream.write(response)?;
+    self.log(&format!("Wrote {} ACK, {} bytes", command.name(), size));
+
+    Ok(())
   }
 
   fn log(&self, message: &str) {
