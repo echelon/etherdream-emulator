@@ -32,8 +32,8 @@ pub fn gl_window(dac: Arc<Dac>, pipeline: Arc<Pipeline>) {
   while let Some(e) = window.next() {
     if let Some(args) = e.render_args() {
 
-      let mut target = window.draw();
-      g2d.draw(&mut target, args.viewport(), |ctx, gfx| {
+      let mut frame = window.draw();
+      g2d.draw(&mut frame, args.viewport(), |ctx, gfx| {
 
         //clear([1.0; 4], gfx);
 
@@ -45,7 +45,7 @@ pub fn gl_window(dac: Arc<Dac>, pipeline: Arc<Pipeline>) {
                 gfx);
 
         println!("Ready Draw.");
-        let result = pipeline.dequeue(10_000);
+        let result = pipeline.dequeue(1_000);
         let points = match result {
           Err(_) => Vec::new(), // TODO
           Ok(points) => points,
@@ -53,6 +53,7 @@ pub fn gl_window(dac: Arc<Dac>, pipeline: Arc<Pipeline>) {
 
         //for point in dac.drain_points() {
         for point in points {
+          /*
           let x = map_x(point.x, args.width);
           let y = map_y(point.y, args.height);
           let r = map_color(point.r);
@@ -69,13 +70,24 @@ pub fn gl_window(dac: Arc<Dac>, pipeline: Arc<Pipeline>) {
                   1.0,
             ],
             &ctx.draw_state, ctx.transform, gfx);
+            */
+
+          Ellipse::new([point.r, point.g, point.b, 1.0])
+              .draw([
+                // Position
+                point.x,
+                point.y,
+                // Size of shape.
+                1.0,
+                1.0,
+              ], &ctx.draw_state, ctx.transform, gfx);
         }
 
         println!("Draw.\n");
 
       });
 
-      target.finish().unwrap();
+      frame.finish().unwrap();
     }
   }
 

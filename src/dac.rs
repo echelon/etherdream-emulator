@@ -229,6 +229,15 @@ impl Dac {
 
             let _r = self.pipeline.enqueue(frame);
 
+            // TODO: Cleanup.
+            match self.status.try_write() {
+              Err(_) => {},
+              Ok(mut status) => {
+                //status.buffer_fullness = num_points;
+                //status.buffer_fullness = self.pipeline.input_len().unwrap() as u16;
+              },
+            }
+
             Command::Data { num_points: num_points, points: Vec::new() }
           },
           COMMAND_PREPARE => {
