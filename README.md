@@ -1,33 +1,49 @@
-EtherDream Laser Projector Emulator
-===================================
-
-This is a visual emulator for the Etherdream laser projector DAC. It
-displays the points that are projected (as well as blanking) for easy
+EtherDream Graphical Emulator
+=============================
+This is a visual emulator for the
+[EtherDream laser projector DAC](http://ether-dream.com/). It displays
+the points that are projected in real time, making it easy for
 development and debugging without actual laser hardware present.
 
 This is currently in a working state and can be used for active
 EtherDream / laser projection development.
 
-TODO
-----
-- Full protocol support (all commands, better statefulness)
-- Further clean up and testing
-- Better error handling
-- Better logging
-- Comprehensive tests
-- Support Multiprojection (multiple DACs/projectors)
-- Draw on a 3D surface and calculate projection angles and deformations
+Screenshot:
+
+![Laser Pong Screenshot](http://i.imgur.com/RmySzdQ.png)
+
+Installation and Use
+--------------------
+Install Rust version 1.13 or greater.
+
+```
+git clone https://github.com/echelon/etherdream-emulator.git
+cd etherdream-emulator
+cargo run
+```
+
+Or to compile and run the release version (faster and more performant),
+
+```
+cargo build --release
+./target/release/etherdream-emulator
+```
+
+The emulator sends EtherDream broadcast packets and listens on the
+default EtherDream port. Simply start sending traffic to it!
 
 See Also
 --------
-I'm beginning to build out Rust libraries and tools for laser
-projection:
+Rust laser projection projects:
+
+- [etherdream.rs](https://github.com/echelon/etherdream.rs), a Rust
+  library for driving EtherDream.
 
 - [ILDA.rs](https://github.com/echelon/ilda.rs), a Rust parser for the
   ILDA laser display format.
 
 There are also a number of existing programs I've written that talk in
-EtherDream:
+EtherDream, all of which can be "emulated" with this software:
 
 - [Laser Asteroids](https://github.com/echelon/laser-asteroids),
   an EtherDream laser projector video game I wrote in Python for the
@@ -91,3 +107,14 @@ STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 
+TODO
+----
+There are a number of future improvements to make:
+
+- Add a gif or screenshot.
+- Full protocol support (all commands, plus a better state machine)
+- Unit tests
+- Better error handling
+- Better logging
+- Support Multiprojection (multiple DACs/projectors)
+- Draw on a 3D surface and calculate projection angles and deformations
