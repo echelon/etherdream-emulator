@@ -16,6 +16,11 @@ Installation and Use
 --------------------
 Install Rust version 1.13 or greater.
 
+For Windows - tested under MSYS2 environment. Install freetype in
+MSYS2 with: `pacman -S mingw-w64-x86_64-freetype` or 
+`pacman -S mingw-w64-i686-freetype`. More info 
+[here](https://github.com/PistonDevelopers/freetype-sys).
+
 ```
 git clone https://github.com/echelon/etherdream-emulator.git
 cd etherdream-emulator
