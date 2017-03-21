@@ -89,7 +89,7 @@ fn broadcast_thread() {
   let udp = UdpBuilder::new_v4().unwrap();
   udp.reuse_address(true).unwrap();
 
-  let socket = udp.bind("0.0.0.0:7654").unwrap();
+  let socket = udp.bind("0.0.0.0:0").unwrap();
   socket.set_broadcast(true).unwrap();
 
   let multicast_ip = Ipv4Addr::new(255, 255, 255, 255);

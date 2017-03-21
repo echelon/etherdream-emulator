@@ -1,8 +1,7 @@
 // Copyright (c) 2016 Brandon Thomas <bt@brand.io>, <echelon@gmail.com>
 
 use RuntimeOpts;
-use byteorder::LittleEndian;
-use byteorder::ReadBytesExt;
+use byteorder::{ByteOrder, LittleEndian, ReadBytesExt};
 use error::EmulatorError;
 use pipeline::Pipeline;
 use protocol::COMMAND_BEGIN;
@@ -148,7 +147,7 @@ impl Dac {
                      buf: [u8; 2048],
                      read_size: usize)
                      -> Result<(u16, Vec<u8>), EmulatorError> {
-    let num_points = read_u16(&buf[1 .. 3]);
+    let num_points = LittleEndian::read_u16(&buf[1 .. 3]);
 
     self.log(&format!("Reading {} points.", num_points));
 
@@ -203,12 +202,6 @@ impl Dac {
       println!("{}", message);
     }
   }
-}
-
-// TODO: Use the byteorder library instead.
-#[inline]
-fn read_u16(bytes: &[u8]) -> u16 {
-  ((bytes[0] as u16) << 8) | (bytes[1] as u16)
 }
 
 /// Parse a 'begin' command.
