@@ -7,6 +7,7 @@ use pipeline::Pipeline;
 use protocol::COMMAND_BEGIN;
 use protocol::COMMAND_DATA;
 use protocol::COMMAND_PREPARE;
+use protocol::COMMAND_VERSION;
 use protocol::Command;
 use protocol::DacResponse;
 use protocol::DacStatus;
@@ -22,6 +23,9 @@ use std::time::Duration;
 
 /// Size of a single point in bytes.
 const POINT_SIZE : usize = 18;
+
+/// Software version reported by the etherdream emulator.
+const VIRTUAL_DAC_VERSION: &'static str = "v0.0.1";
 
 /// Points sent from the Dac in a single DATA command payload.
 pub struct DacFrame {
@@ -88,6 +92,9 @@ impl Dac {
         Command::Data { .. } => {
           self.write(&mut stream, &command);
         },
+        Command::Version => {
+          self.write_version(&mut stream);
+        },
         _ => {
           println!("Cannot send ack for unknown/unhandled command.");
           return Err(EmulatorError::UnknownCommand);
@@ -131,6 +138,9 @@ impl Dac {
       COMMAND_BEGIN => {
         // TODO: Include command code in error.
         parse_begin(&buf).map_err(|_| EmulatorError::UnknownCommand)
+      },
+      COMMAND_VERSION => {
+        Ok(Command::Version)
       },
       _ => {
         // TODO: Implement all commands
@@ -190,6 +200,20 @@ impl Dac {
     Ok(())
   }
 
+  /// Write version string back to client.
+  fn write_version(&self, stream: &mut TcpStream) -> Result<(), EmulatorError> {
+    let mut payload = Vec::with_capacity(32);
+    payload.extend_from_slice(VIRTUAL_DAC_VERSION.as_bytes());
+
+    while payload.len() < 32 {
+      payload.push(0); // Must pad to 32 bytes.
+    }
+
+    let _size = stream.write(&payload)?;
+
+    Ok(())
+  }
+
   /// Reset internal status.
   fn reset_status(&self) {
     let _r = self.status.try_write()
@@ -220,3 +244,60 @@ pub fn parse_begin(bytes: &[u8]) -> Result<Command, EmulatorError> {
   })
 }
 
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use std::thread;
+  use std::sync::Arc;
+
+  // TODO: Add more protocol tests.
+
+  #[test]
+  fn test_version_command() {
+    thread::spawn(move || make_dac().run());
+    thread::sleep_ms(250); // Wait for DAC to accept connections.
+
+    let mut stream = TcpStream::connect("127.0.0.1:7765").unwrap();
+
+    assert_ack(&mut stream, 0x3f); // '?' ping
+
+    // Write version command 'v'
+    let _ = stream.write(&vec![0x76]);
+
+    let mut resp = [0u8; 32];
+    let _ = stream.read(&mut resp);
+
+    let expected : Vec<u8> = vec![
+      // 'v0.0.1'
+      0x76, 0x30, 0x2E, 0x30, 0x2E, 0x31,
+      // 26 bytes padding
+      0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+      0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+      0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+      0x0, 0x0,
+    ];
+
+    assert_eq!(resp, expected.as_ref());
+  }
+
+  // Assert a command was read by the DAC and ack'd
+  fn assert_ack(stream: &mut TcpStream, cmd_byte: u8) {
+    let mut buf = [0u8; 22];
+    let _len = stream.read(&mut buf);
+
+    // ack + command byte
+    let expected : Vec<u8> = vec![
+      0x61, cmd_byte,
+      0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+      0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+      0x0, 0x0, 0x0, 0x0,
+    ];
+    assert_eq!(buf, expected.as_ref());
+  }
+
+  fn make_dac() -> Dac {
+    let opts = RuntimeOpts { debug_protocol: false, headless: true };
+    let pipeline = Pipeline::new();
+    Dac::new(&opts, Arc::new(pipeline))
+  }
+}

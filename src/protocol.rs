@@ -10,6 +10,7 @@ use std::fmt;
 pub const COMMAND_BEGIN : u8   = 0x62;
 pub const COMMAND_DATA : u8    = 0x64;
 pub const COMMAND_PREPARE : u8 = 0x70;
+pub const COMMAND_VERSION : u8 = 0x76;
 
 /** The DAC periodically sends state information. */
 #[derive(Clone)]
@@ -154,7 +155,7 @@ pub enum Command {
     /// Unused.
     low_water_mark: u16,
     /// Point Rate.
-	point_rate : u32,
+    point_rate : u32,
   },
   ClearEStop,
   EmergencyStop,
@@ -183,6 +184,9 @@ pub enum Command {
   Data {
     num_points: u16,
   },
+
+  /// Get the DAC version.
+  Version,
 }
 
 impl Command {
@@ -197,6 +201,7 @@ impl Command {
       Command::Prepare => 0x70,         // 'p'
       Command::QueueRateChange => 0x74, // 'q'
       Command::Stop => 0x73,            // 's'
+      Command::Version => 0x76,         // 'v'
     }
   }
 
@@ -210,6 +215,7 @@ impl Command {
       Command::Prepare => "Prepare",
       Command::QueueRateChange => "QueueRateChange",
       Command::Stop => "Stop",
+      Command::Version => "Version",
     }
   }
 }
@@ -234,6 +240,8 @@ impl fmt::Display for Command {
           "QueueRateChange".to_string(),
       Command::Stop =>
           "Stop".to_string(),
+      Command::Version =>
+          "Version".to_string(),
     };
     write!(f, "{}", display)
   }
