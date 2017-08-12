@@ -123,12 +123,12 @@ impl Dac {
         let _r = self.pipeline.enqueue(frame);
 
         // TODO: Report buffer size to apply back pressure.
-        //match self.status.try_write() {
-        //  Err(_) => {},
-        //  Ok(mut status) => {
-        //    status.buffer_fullness = self.pipeline.queue_size();
-        //  },
-        //}
+        match self.status.try_write() {
+          Err(_) => {},
+          Ok(mut status) => {
+            status.buffer_fullness = self.pipeline.queue_size()? as u16;
+          },
+        }
 
         Ok(Command::Data { num_points: num_points })
       },

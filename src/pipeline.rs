@@ -57,6 +57,12 @@ impl Pipeline {
     Ok(buf)
   }
 
+  /// Get the queue size.
+  pub fn queue_size(&self) -> Result<usize, EmulatorError> {
+    let mut lock = self.input.lock()?;
+    Ok((*lock).len())
+  }
+
   /// Run by a separate thread from network and graphics.
   pub fn process(&self) -> ! {
     loop {
