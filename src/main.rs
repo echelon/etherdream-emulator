@@ -27,6 +27,7 @@ use render::gl_window;
 use std::net::IpAddr;
 use std::net::Ipv4Addr;
 use std::net::SocketAddr;
+use std::str::FromStr;
 use std::sync::Arc;
 use std::thread::sleep;
 use std::thread;
@@ -44,6 +45,9 @@ pub struct RuntimeOpts {
 
   /// Don't spawn a GUI.
   pub headless: bool,
+
+  /// Size of rendered points.
+  pub point_size: f64,
 }
 
 impl RuntimeOpts {
@@ -60,11 +64,19 @@ impl RuntimeOpts {
              .help("Turns off the GUI")
              .takes_value(false)
              .required(false))
+        .arg(Arg::with_name("point")
+             .long("point")
+             .help("Changes size of drawn points")
+             .takes_value(true)
+             .required(false))
         .get_matches();
 
     RuntimeOpts {
       debug_protocol: matches.is_present("debug"),
       headless: matches.is_present("headless"),
+      point_size: matches.value_of("point")
+        .map_or(None, |s| f64::from_str(s).ok())
+        .unwrap_or(1.0)
     }
   }
 }
@@ -78,7 +90,7 @@ fn main() {
   let dac = Dac::new(&args, pipeline.clone());
 
   thread::spawn(|| broadcast_thread());
-  thread::spawn(move || gl_window(pipeline2));
+  thread::spawn(move || gl_window(pipeline2, &args));
   thread::spawn(move || pipeline.process());
 
   dac.run();

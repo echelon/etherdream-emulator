@@ -1,5 +1,6 @@
 // Copyright (c) 2016 Brandon Thomas <bt@brand.io>, <echelon@gmail.com>
 
+use RuntimeOpts;
 use glium_graphics::Glium2d;
 use glium_graphics::GliumWindow;
 use glium_graphics::OpenGL;
@@ -18,7 +19,7 @@ const INITIAL_WINDOW_DIMENSIONS : [u32; 2] = [600, 600];
 /// Not completely black so that laser blanking can be seen.
 const BG_COLOR : [f32; 4] = [0.1, 0.1, 0.1, 1.0];
 
-pub fn gl_window(pipeline: Arc<Pipeline>) {
+pub fn gl_window(pipeline: Arc<Pipeline>, runtime_opts: &RuntimeOpts) {
   let opengl = OpenGL::V3_2;
   let ref mut window: GliumWindow =
       WindowSettings::new("EtherDream Emulator", INITIAL_WINDOW_DIMENSIONS)
@@ -59,8 +60,8 @@ pub fn gl_window(pipeline: Arc<Pipeline>) {
                   x,
                   y,
                   // Size of shape.
-                  1.0,
-                  1.0,
+                  runtime_opts.point_size,
+                  runtime_opts.point_size,
             ],
             &ctx.draw_state, ctx.transform, gfx);
         }
