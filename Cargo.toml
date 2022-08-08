@@ -12,13 +12,12 @@
   name = "etherdream-emulator"
 
 [dependencies]
-  byteorder = "0.5.*"
-  clap = "2.10.1"
-  glium = "0.14.*"
-  ilda = "0.0.2"
-  log = "0.3.*"
-  net2 = "0.2.*"
-  piston = "0.23.*"
-  piston2d-glium_graphics = "0.26.0"
-  piston2d-graphics = "0.16.0"
-
+  byteorder = "1.4.3"
+  clap = "3.2.16"
+  glium = "0.32.1"
+  ilda = "0.2.0"
+  log = "0.4.17"
+  net2 = "0.2.37"
+  piston = "0.53.1"
+  piston2d-glium_graphics = "0.90.0"
+  piston2d-graphics = "0.42.0"
