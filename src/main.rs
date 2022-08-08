@@ -37,7 +37,7 @@ use std::time::Duration;
 const TCP_PORT: u16 = 7765;
 const UDP_PORT: u16 = 7654;
 
-/// Program runtime optionsw
+/// Program runtime options
 #[derive(Clone, Debug)]
 pub struct RuntimeOpts {
     /// Print debugging information to STDOUT,
